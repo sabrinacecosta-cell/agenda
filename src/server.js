@@ -39,7 +39,7 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // ─── CONFIG ───────────────────────────────────────────────────────
 const CONFIG = {
-  workStart:  8,
+  workStart:  9,
   workEnd:    18,
   lunchStart: 12,
   lunchEnd:   14,
