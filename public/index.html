@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agenda — Agendamento de Reuniões</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f2ee;
+    --surface: #ffffff;
+    --surface2: #faf8f5;
+    --border: #e8e2d9;
+    --accent: #2b2b2b;
+    --accent-light: #444444;
+    --accent-faint: #efefef;
+    --gold: #c8a84b;
+    --gold-light: #f5eedc;
+    --text: #1a1a18;
+    --muted: #7a7670;
+    --bubble-user: #2b2b2b;
+    --bubble-bot: #ffffff;
+    --danger: #c0392b;
+    --success: #444444;
+    --radius: 16px;
+    --radius-sm: 8px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    font-family: 'DM Sans', sans-serif;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='4' height='4' fill='%23f5f2ee'/%3E%3Ccircle cx='1' cy='1' r='.5' fill='%23e8e2d9' opacity='.4'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0;
+  }
+
+  header {
+    position: relative; z-index: 10;
+    background: var(--accent);
+    padding: 18px 28px;
+    display: flex; align-items: center; gap: 16px;
+    box-shadow: 0 2px 20px rgba(0,0,0,.2);
+  }
+
+  .logo-mark {
+    width: 42px; height: 42px;
+    border: 1.5px solid var(--gold);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--gold);
+    font-family: 'DM Serif Display', serif;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .header-text h1 { font-family: 'DM Serif Display', serif; font-size: 18px; color: #fff; font-weight: 400; }
+  .header-text p  { font-size: 12px; color: rgba(255,255,255,.5); margin-top: 1px; }
+
+  .header-status {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12px; color: rgba(255,255,255,.6);
+  }
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #4ade80;
+    box-shadow: 0 0 6px #4ade80;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  #chat {
+    position: relative; z-index: 1;
+    flex: 1; overflow-y: auto;
+    padding: 32px 20px 16px;
+    display: flex; flex-direction: column; gap: 16px;
+    scroll-behavior: smooth;
+  }
+  #chat::-webkit-scrollbar { width: 4px; }
+  #chat::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .msg-row {
+    display: flex; gap: 10px; max-width: 680px;
+    animation: msgIn .3s cubic-bezier(.34,1.56,.64,1) both;
+  }
+  @keyframes msgIn {
+    from { opacity:0; transform:translateY(10px) scale(.97); }
+    to   { opacity:1; transform:translateY(0) scale(1); }
+  }
+  .msg-row.user { align-self: flex-end; flex-direction: row-reverse; }
+  .msg-row.bot  { align-self: flex-start; }
+
+  .avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    flex-shrink: 0; margin-top: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+  .avatar.bot-av  { background: var(--accent); color: var(--gold); font-family: 'DM Serif Display', serif; }
+  .avatar.user-av { background: var(--border); color: var(--muted); }
+
+  .bubble {
+    padding: 13px 17px; border-radius: var(--radius);
+    max-width: 520px; line-height: 1.65; font-size: 14px;
+  }
+  .bubble.bot {
+    background: var(--bubble-bot); border: 1px solid var(--border);
+    border-bottom-left-radius: 4px; color: var(--text);
+    box-shadow: 0 1px 8px rgba(0,0,0,.05);
+  }
+  .bubble.user {
+    background: var(--bubble-user); color: #fff;
+    border-bottom-right-radius: 4px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.2);
+  }
+  .bubble strong { font-weight: 600; }
+  .bubble em { font-style: italic; color: var(--muted); font-size: 13px; }
+
+  .slots-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .slot-btn {
+    padding: 7px 14px;
+    border: 1.5px solid var(--accent); background: transparent;
+    color: var(--accent); border-radius: 6px;
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all .18s;
+  }
+  .slot-btn:hover { background: var(--accent); color: #fff; transform: translateY(-1px); }
+
+  .week-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+  .week-table th {
+    background: var(--accent-faint); color: var(--accent); font-weight: 600;
+    padding: 8px 10px; text-align: left; border: 1px solid var(--border);
+  }
+  .week-table td { padding: 7px 10px; border: 1px solid var(--border); vertical-align: top; }
+  .week-table tr:nth-child(even) td { background: var(--surface2); }
+
+  .slot-tag {
+    display: inline-block; background: var(--accent-faint); color: var(--accent);
+    border-radius: 4px; padding: 2px 8px; margin: 2px 2px 2px 0;
+    font-size: 12px; cursor: pointer; border: 1px solid rgba(0,0,0,.1);
+    transition: all .15s;
+  }
+  .slot-tag:hover { background: var(--accent); color: #fff; }
+
+  .confirm-card {
+    background: var(--accent-faint); border: 1.5px solid var(--accent);
+    border-radius: var(--radius-sm); padding: 16px 18px;
+    margin-top: 12px; font-size: 13px; line-height: 1.8;
+  }
+  .confirm-card .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; }
+  .confirm-card .value { font-weight: 600; color: var(--accent); }
+  .confirm-card .row   { margin-bottom: 10px; }
+  .confirm-card .row:last-child { margin-bottom: 0; }
+
+  .action-btns { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  .btn-primary {
+    padding: 10px 22px; background: var(--accent); color: #fff;
+    border: none; border-radius: 8px; font-family: 'DM Sans', sans-serif;
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: all .18s;
+    box-shadow: 0 2px 8px rgba(0,0,0,.15);
+  }
+  .btn-primary:hover { background: var(--accent-light); transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+  .btn-secondary {
+    padding: 10px 22px; background: transparent; color: var(--accent);
+    border: 1.5px solid var(--accent); border-radius: 8px;
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all .18s;
+  }
+  .btn-secondary:hover { background: var(--accent-faint); }
+
+  .title-input {
+    width: 100%; padding: 10px 14px;
+    border: 1.5px solid var(--accent); border-radius: 8px;
+    background: #fff; color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 14px;
+    margin-top: 8px; outline: none; transition: border-color .2s;
+  }
+  .title-input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(200,168,75,.15); }
+
+  .email-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .email-tag {
+    background: var(--gold-light); border: 1px solid rgba(200,168,75,.4);
+    color: #7a5c1a; border-radius: 20px; padding: 4px 12px; font-size: 12px;
+  }
+
+  .input-wrap {
+    position: relative; z-index: 10;
+    padding: 16px 20px 20px;
+    background: var(--surface); border-top: 1px solid var(--border);
+    box-shadow: 0 -2px 20px rgba(0,0,0,.06);
+  }
+  .quick-btns { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .quick-btn {
+    padding: 6px 14px; background: var(--accent-faint);
+    border: 1px solid rgba(0,0,0,.1); border-radius: 20px;
+    color: var(--accent); font-size: 12px; font-weight: 500;
+    cursor: pointer; transition: all .15s; white-space: nowrap;
+  }
+  .quick-btn:hover { background: var(--accent); color: #fff; }
+
+  .input-row { display: flex; gap: 10px; }
+  #userInput {
+    flex: 1; padding: 13px 18px;
+    border: 1.5px solid var(--border); border-radius: 25px;
+    background: var(--surface2); font-family: 'DM Sans', sans-serif;
+    font-size: 14px; color: var(--text); outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  #userInput:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(43,43,43,.08); background: #fff; }
+  #userInput::placeholder { color: var(--muted); }
+
+  #sendBtn {
+    width: 48px; height: 48px; flex-shrink: 0;
+    background: var(--accent); border: none; border-radius: 50%;
+    color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all .18s; box-shadow: 0 2px 10px rgba(0,0,0,.2);
+  }
+  #sendBtn:hover { background: var(--accent-light); transform: scale(1.05); }
+  #sendBtn svg { width: 18px; height: 18px; }
+
+  .typing { display: flex; gap: 4px; align-items: center; padding: 12px 16px; }
+  .typing span {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--muted);
+    animation: bounce .8s infinite;
+  }
+  .typing span:nth-child(2) { animation-delay: .15s; }
+  .typing span:nth-child(3) { animation-delay: .3s; }
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
+  .success-msg { color: var(--success); font-weight: 600; }
+  .danger-msg  { color: var(--danger); }
+  .date-hint   { font-size: 11px; color: var(--muted); margin-top: 8px; }
+
+  @media(max-width:520px) {
+    header { padding: 14px 16px; }
+    #chat  { padding: 20px 12px 12px; }
+    .input-wrap { padding: 12px 12px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark">W</div>
+  <div class="header-text">
+    <h1>Agenda WFlow</h1>
+    <p>Agendamento de reuniões · Consórcio</p>
+  </div>
+  <div class="header-status">
+    <div class="status-dot"></div>
+    Online
+  </div>
+</header>
+
+<div id="chat"></div>
+
+<div class="input-wrap">
+  <div class="quick-btns">
+    <button class="quick-btn" onclick="quickSend('Quais horários disponíveis hoje?')">📅 Hoje</button>
+    <button class="quick-btn" onclick="quickSend('Mostrar disponibilidade desta semana')">📆 Esta semana</button>
+    <button class="quick-btn" onclick="quickSend('Quero agendar uma reunião')">➕ Agendar</button>
+  </div>
+  <div class="input-row">
+    <input id="userInput" type="text" placeholder="Ex: horários do dia 10/03/2026 ou agendar dia 10/03 às 14h…" autocomplete="off">
+    <button id="sendBtn" onclick="handleSend()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"></line>
+        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════
+const CONFIG = {
+  defaultEmails: ['joel@wflowinvest.com', 'suporte.consorcio@wflowadv.com'],
+  senderEmail:   'sabrina@jtdkinvest.com',
+  titleTemplate: 'Apresentação Consórcio – [Nome do Cliente]',
+};
+
+// API base — em produção será o mesmo domínio
+const API = '';
+
+// Flow state
+let flow = {
+  step: 'idle',
+  date: null, time: null, duration: null,
+  emails: [], title: CONFIG.titleTemplate,
+};
+
+// ═══════════════════════════════════════
+//  DATE/TIME HELPERS
+// ═══════════════════════════════════════
+function toISO(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function fmtDate(d) {
+  if (typeof d === 'string') { const [y,m,dd] = d.split('-'); d = new Date(+y,+m-1,+dd); }
+  return d.toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'2-digit', year:'numeric' });
+}
+function fmtShort(iso) {
+  const [y,m,d] = iso.split('-'); const dt = new Date(+y,+m-1,+d);
+  return dt.toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'2-digit' });
+}
+function fmtHour(h) {
+  return `${String(Math.floor(h)).padStart(2,'0')}:${(h%1)===.5?'30':'00'}`;
+}
+function parseDateFromMsg(msg) {
+  const m = msg.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?/);
+  if (!m) return null;
+  const year = m[3] ? +m[3] : new Date().getFullYear();
+  return new Date(year, +m[2]-1, +m[1]);
+}
+function parseTimeFromMsg(msg) {
+  const m = msg.match(/(\d{1,2})(?:h|:)(\d{0,2})/i);
+  if (!m) return null;
+  return parseInt(m[1]) + (m[2] ? (parseInt(m[2])||0)/60 : 0);
+}
+function todayISO() { return toISO(new Date()); }
+function weekStartISO() {
+  const d = new Date(); const day = d.getDay();
+  d.setDate(d.getDate() - (day===0?6:day-1));
+  return toISO(d);
+}
+
+// ═══════════════════════════════════════
+//  API CALLS
+// ═══════════════════════════════════════
+async function apiSlots(dateISO) {
+  const r = await fetch(`${API}/api/slots?date=${dateISO}`);
+  return r.json();
+}
+async function apiWeek(dateISO) {
+  const r = await fetch(`${API}/api/slots/week?date=${dateISO}`);
+  return r.json();
+}
+async function apiCheck(dateISO, hora_inicio, duracao) {
+  const r = await fetch(`${API}/api/check`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ date: dateISO, hora_inicio, duracao }),
+  });
+  return r.json();
+}
+async function apiBook(payload) {
+  const r = await fetch(`${API}/api/agendamentos`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(payload),
+  });
+  return { ok: r.ok, data: await r.json() };
+}
+
+// ═══════════════════════════════════════
+//  CHAT UI
+// ═══════════════════════════════════════
+const chatEl = document.getElementById('chat');
+
+function appendMsg(html, sender='bot') {
+  const row = document.createElement('div');
+  row.className = `msg-row ${sender}`;
+  const av = document.createElement('div');
+  av.className = `avatar ${sender==='bot'?'bot-av':'user-av'}`;
+  av.textContent = sender==='bot' ? 'W' : '👤';
+  const bubble = document.createElement('div');
+  bubble.className = `bubble ${sender}`;
+  bubble.innerHTML = html;
+  row.appendChild(av); row.appendChild(bubble);
+  chatEl.appendChild(row);
+  chatEl.scrollTop = chatEl.scrollHeight;
+}
+
+function showTyping() {
+  const row = document.createElement('div');
+  row.className = 'msg-row bot'; row.id = 'typing';
+  const av = document.createElement('div');
+  av.className = 'avatar bot-av'; av.textContent = 'W';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble bot';
+  bubble.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+  row.appendChild(av); row.appendChild(bubble);
+  chatEl.appendChild(row); chatEl.scrollTop = chatEl.scrollHeight;
+}
+function hideTyping() { document.getElementById('typing')?.remove(); }
+
+async function botReply(html, delay=700) {
+  showTyping();
+  await sleep(delay);
+  hideTyping();
+  appendMsg(html, 'bot');
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ═══════════════════════════════════════
+//  SLOT RENDERING
+// ═══════════════════════════════════════
+function slotsHtml(slots, dateISO) {
+  if (!slots || !slots.length)
+    return '<span class="danger-msg">Nenhum horário disponível neste dia.</span>';
+  return `<div class="slots-grid">${slots.map(h =>
+    `<button class="slot-btn" onclick="slotChosen('${dateISO}',${h})">${fmtHour(h)}</button>`
+  ).join('')}</div>`;
+}
+
+// ═══════════════════════════════════════
+//  INTENT
+// ═══════════════════════════════════════
+function detectIntent(msg) {
+  const m = msg.toLowerCase();
+  if (/semana|week/.test(m)) return 'week';
+  if (/agendar|marcar|reunião|meeting/.test(m)) return 'book';
+  if (/horário|disponib|livre|vaga/.test(m)) return 'slots';
+  return 'unknown';
+}
+
+// ═══════════════════════════════════════
+//  HANDLERS
+// ═══════════════════════════════════════
+async function handleQuery(msg) {
+  const intent = detectIntent(msg);
+
+  if (intent === 'week') {
+    const date = parseDateFromMsg(msg);
+    const iso = date ? toISO(date) : weekStartISO();
+    const res = await apiWeek(iso);
+    if (!res.week) { await botReply('Erro ao consultar semana. Tente novamente.'); return; }
+    let rows = '';
+    res.week.forEach(({ date: d, slots }) => {
+      const tags = slots.length
+        ? slots.map(h => `<span class="slot-tag" onclick="slotChosen('${d}',${h})">${fmtHour(h)}</span>`).join('')
+        : '<em>Sem disponibilidade</em>';
+      rows += `<tr><td><strong>${fmtShort(d)}</strong></td><td>${tags}</td></tr>`;
+    });
+    await botReply(`📆 <strong>Disponibilidade da semana:</strong>
+      <table class="week-table">
+        <thead><tr><th>Dia</th><th>Horários disponíveis</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="date-hint">Clique em um horário para agendar.</div>`);
+    return;
+  }
+
+  if (intent === 'slots') {
+    const date = parseDateFromMsg(msg);
+    const iso = date ? toISO(date) : todayISO();
+    const res = await apiSlots(iso);
+    await botReply(`📅 <strong>Horários disponíveis — ${fmtDate(iso)}:</strong><br>
+      ${slotsHtml(res.slots, iso)}
+      <div class="date-hint">Clique em um horário para iniciar o agendamento.</div>`);
+    flow.date = iso; flow.step = 'choose_slot';
+    return;
+  }
+
+  if (intent === 'book') {
+    const date = parseDateFromMsg(msg);
+    const time = parseTimeFromMsg(msg);
+    if (date && time !== null) {
+      await attemptBook(toISO(date), time);
+    } else if (date) {
+      const iso = toISO(date);
+      flow.date = iso; flow.step = 'choose_slot';
+      const res = await apiSlots(iso);
+      await botReply(`📅 <strong>${fmtDate(iso)}</strong> — Escolha um horário:
+        ${slotsHtml(res.slots, iso)}`);
+    } else {
+      await botReply('Para agendar, informe data e horário.<br>Exemplo: <em>"Agendar dia 10/03/2026 às 14h"</em>');
+    }
+    return;
+  }
+
+  await botReply(`Olá! Posso ajudar com:<br>
+    • <strong>Ver disponibilidade de um dia</strong> — ex: <em>"horários do dia 10/03/2026"</em><br>
+    • <strong>Ver disponibilidade da semana</strong> — ex: <em>"semana do dia 03/03/2026"</em><br>
+    • <strong>Agendar reunião</strong> — ex: <em>"agendar dia 10/03/2026 às 14h"</em>`);
+}
+
+async function attemptBook(iso, time) {
+  const check = await apiCheck(iso, time, 0.5);
+  if (!check.disponivel) {
+    const motivos = {
+      fim_de_semana: 'este dia é fim de semana',
+      fora_do_horario: 'o horário está fora do período permitido (08:00–18:00)',
+      horario_almoco: 'das 12:00 às 14:00 é horário de almoço',
+      conflito: 'este horário já está ocupado',
+    };
+    const msg = motivos[check.motivo] || 'horário indisponível';
+    const res = await apiSlots(iso);
+    await botReply(`❌ Não é possível agendar às <strong>${fmtHour(time)}</strong> — ${msg}.<br><br>
+      Horários disponíveis em <strong>${fmtDate(iso)}</strong>:
+      ${slotsHtml(res.slots, iso)}`, 800);
+    flow.date = iso; flow.step = 'choose_slot';
+    return;
+  }
+  flow.date = iso; flow.time = time;
+  await askEmails();
+}
+
+async function slotChosen(iso, h) {
+  flow.date = iso; flow.time = h;
+  appendMsg(`${fmtDate(iso)} às ${fmtHour(h)}`, 'user');
+  await askEmails();
+}
+
+async function askEmails() {
+  flow.step = 'collect_emails';
+  await botReply(`✅ <strong>${fmtHour(flow.time)}</strong> de <strong>${fmtDate(flow.date)}</strong> disponível!<br><br>
+    Quais <strong>e-mails adicionais</strong> incluir no convite?<br>
+    <em>Os abaixo já são incluídos automaticamente:</em><br>
+    <div class="email-tags">
+      ${CONFIG.defaultEmails.map(e=>`<span class="email-tag">📧 ${e}</span>`).join('')}
+    </div>
+    <div class="date-hint">Digite e-mails separados por vírgula, ou "nenhum" para continuar.</div>`, 600);
+}
+
+async function handleEmailStep(msg) {
+  const lower = msg.trim().toLowerCase();
+  flow.emails = (lower==='nenhum'||lower==='não'||lower==='nao')
+    ? []
+    : msg.split(/[,;\s]+/).map(e=>e.trim()).filter(e=>e.includes('@'));
+  flow.step = 'collect_duration';
+  await botReply(`A reunião terá duração de <strong>30 minutos</strong> ou <strong>1 hora</strong>?<br><br>
+    <div class="slots-grid">
+      <button class="slot-btn" onclick="durationChosen(0.5)">30 minutos</button>
+      <button class="slot-btn" onclick="durationChosen(1)">1 hora</button>
+    </div>`, 500);
+}
+
+async function durationChosen(dur) {
+  const check = await apiCheck(flow.date, flow.time, dur);
+  if (!check.disponivel) {
+    const res = await apiSlots(flow.date);
+    await botReply(`❌ Não há espaço para <strong>${dur===1?'1 hora':'30 minutos'}</strong> a partir de <strong>${fmtHour(flow.time)}</strong>.<br><br>
+      Escolha outro horário:${slotsHtml(res.slots, flow.date)}`, 500);
+    flow.step = 'choose_slot'; return;
+  }
+  flow.duration = dur;
+  appendMsg(dur===0.5?'30 minutos':'1 hora','user');
+  flow.step = 'collect_title';
+  await botReply(`Como será o <strong>título da reunião</strong>?<br>
+    <em>Sugestão (substitua [Nome do Cliente]):</em><br>
+    <input class="title-input" id="titleField" type="text" value="${CONFIG.titleTemplate}">
+    <div class="action-btns">
+      <button class="btn-primary" onclick="titleConfirmed()">Confirmar título</button>
+    </div>`, 500);
+}
+
+async function titleConfirmed() {
+  const val = document.getElementById('titleField')?.value?.trim();
+  flow.title = val || CONFIG.titleTemplate;
+  flow.step = 'confirm';
+  await showConfirmation();
+}
+
+async function showConfirmation() {
+  const allEmails = [...CONFIG.defaultEmails, ...flow.emails];
+  await botReply(`
+    <div class="confirm-card">
+      <div class="row"><div class="label">Título</div><div class="value">${flow.title}</div></div>
+      <div class="row"><div class="label">Data</div><div class="value">${fmtDate(flow.date)}</div></div>
+      <div class="row"><div class="label">Horário</div><div class="value">${fmtHour(flow.time)} – ${fmtHour(flow.time+flow.duration)}</div></div>
+      <div class="row"><div class="label">Duração</div><div class="value">${flow.duration===0.5?'30 minutos':'1 hora'}</div></div>
+      <div class="row"><div class="label">Remetente</div><div class="value">${CONFIG.senderEmail}</div></div>
+      <div class="row"><div class="label">Convidados</div>
+        <div class="email-tags" style="margin-top:6px">
+          ${allEmails.map(e=>`<span class="email-tag">📧 ${e}</span>`).join('')}
+        </div>
+      </div>
+    </div>
+    <div class="action-btns">
+      <button class="btn-primary" id="confirmBtn" onclick="finalConfirm()">✅ Confirmar agendamento</button>
+      <button class="btn-secondary" onclick="cancelFlow()">✖ Cancelar</button>
+    </div>`, 600);
+}
+
+async function finalConfirm() {
+  const btn = document.getElementById('confirmBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Salvando…'; }
+
+  const allEmails = [...CONFIG.defaultEmails, ...flow.emails];
+  const res = await apiBook({
+    date: flow.date,
+    hora_inicio: flow.time,
+    duracao: flow.duration,
+    titulo: flow.title,
+    emails: allEmails,
+  });
+
+  appendMsg('Confirmar agendamento ✅', 'user');
+
+  if (res.ok) {
+    await botReply(`
+      <span class="success-msg">🎉 Reunião agendada e salva com sucesso!</span><br><br>
+      O convite será enviado por <strong>${CONFIG.senderEmail}</strong> para:<br>
+      <div class="email-tags" style="margin-top:8px">
+        ${allEmails.map(e=>`<span class="email-tag">📧 ${e}</span>`).join('')}
+      </div>
+      <div style="margin-top:12px;font-size:13px;color:var(--muted)">
+        Precisa agendar outra reunião? É só perguntar! 😊
+      </div>`, 800);
+  } else {
+    await botReply(`❌ Erro ao salvar: ${res.data?.error || 'tente novamente.'}`);
+  }
+
+  flow = { step:'idle', date:null, time:null, duration:null, emails:[], title:CONFIG.titleTemplate };
+}
+
+async function cancelFlow() {
+  appendMsg('Cancelar ✖','user');
+  flow = { step:'idle', date:null, time:null, duration:null, emails:[], title:CONFIG.titleTemplate };
+  await botReply('Agendamento cancelado. Como posso ajudar?', 400);
+}
+
+// ═══════════════════════════════════════
+//  MAIN ROUTER
+// ═══════════════════════════════════════
+async function handleSend() {
+  const input = document.getElementById('userInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  appendMsg(msg, 'user');
+
+  if (flow.step==='collect_emails')   { await handleEmailStep(msg); return; }
+  if (flow.step==='collect_duration') {
+    if (/30|meia/.test(msg)) durationChosen(0.5);
+    else if (/1|hora|60/.test(msg)) durationChosen(1);
+    else await botReply('Escolha <strong>30 minutos</strong> ou <strong>1 hora</strong>.');
+    return;
+  }
+  if (flow.step==='collect_title') {
+    flow.title = msg; flow.step='confirm'; await showConfirmation(); return;
+  }
+  if (flow.step==='choose_slot') {
+    const t = parseTimeFromMsg(msg);
+    if (t !== null && flow.date) { await attemptBook(flow.date, t); return; }
+    const d = parseDateFromMsg(msg);
+    if (d) {
+      flow.date = toISO(d);
+      const res = await apiSlots(flow.date);
+      await botReply(`${fmtDate(flow.date)} — horários disponíveis:${slotsHtml(res.slots, flow.date)}`, 500);
+      return;
+    }
+  }
+  await handleQuery(msg);
+}
+
+function quickSend(msg) { document.getElementById('userInput').value = msg; handleSend(); }
+document.getElementById('userInput').addEventListener('keydown', e => { if(e.key==='Enter') handleSend(); });
+
+// ═══════════════════════════════════════
+//  WELCOME
+// ═══════════════════════════════════════
+window.addEventListener('load', async () => {
+  await botReply(`Olá! 👋 Bem-vindo à <strong>Agenda WFlow</strong>.<br><br>
+    Posso ajudar com:<br>
+    • Ver <strong>horários disponíveis</strong> de um dia ou semana<br>
+    • <strong>Agendar reuniões</strong> com registro permanente<br><br>
+    Como deseja começar?`, 500);
+});
+</script>
+</body>
+</html>
