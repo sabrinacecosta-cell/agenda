@@ -8,7 +8,6 @@ const { google } = require('googleapis');
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// ─── DATABASE ─────────────────────────────────────────────────────
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'agenda.db');
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 const db = new Database(DB_PATH);
@@ -27,7 +26,6 @@ db.exec(`
   )
 `);
 
-// ─── GOOGLE CALENDAR ──────────────────────────────────────────────
 const CALENDAR_ID  = process.env.GOOGLE_CALENDAR_ID || 'sabrina@jtdkinvest.com';
 const SENDER_EMAIL = process.env.SENDER_EMAIL       || 'sabrina@jtdkinvest.com';
 const TIMEZONE     = 'America/Sao_Paulo';
@@ -56,17 +54,13 @@ function toRFC3339(dateStr, hour) {
   return `${dateStr}T${hh}:${mm}:00`;
 }
 
-// Busca eventos ocupados do Google Calendar para um intervalo de datas
 async function getBusyFromGoogleCalendar(dateStart, dateEnd) {
   const auth = getGoogleAuth();
   if (!auth) return [];
   try {
     const calendar = google.calendar({ version: 'v3', auth });
-
-    // Busca todos os calendários que a conta tem acesso
     const calList = await calendar.calendarList.list();
     const calendarIds = calList.data.items.map(c => ({ id: c.id }));
-
     const freebusyRes = await calendar.freebusy.query({
       requestBody: {
         timeMin: `${dateStart}T00:00:00-03:00`,
@@ -75,7 +69,6 @@ async function getBusyFromGoogleCalendar(dateStart, dateEnd) {
         items: calendarIds,
       },
     });
-
     const busy = [];
     const calendars = freebusyRes.data.calendars;
     for (const calId of Object.keys(calendars)) {
@@ -83,7 +76,7 @@ async function getBusyFromGoogleCalendar(dateStart, dateEnd) {
       for (const period of periods) {
         const start = new Date(period.start);
         const end   = new Date(period.end);
-        const dateStr = start.toLocaleDateString('sv-SE', { timeZone: TIMEZONE }); // YYYY-MM-DD
+        const dateStr = start.toLocaleDateString('sv-SE', { timeZone: TIMEZONE });
         const startH  = start.toLocaleTimeString('pt-BR', { timeZone: TIMEZONE, hour: '2-digit', minute: '2-digit' });
         const endH    = end.toLocaleTimeString('pt-BR',   { timeZone: TIMEZONE, hour: '2-digit', minute: '2-digit' });
         const toDecimal = t => { const [h, m] = t.split(':').map(Number); return h + m / 60; };
@@ -92,7 +85,7 @@ async function getBusyFromGoogleCalendar(dateStart, dateEnd) {
     }
     return busy;
   } catch (err) {
-    console.error('Erro ao buscar freebusy do Google Calendar:', err.message);
+    console.error('Erro ao buscar freebusy:', err.message);
     return [];
   }
 }
@@ -142,12 +135,10 @@ async function deleteGoogleCalendarEvent(eventId) {
   }
 }
 
-// ─── MIDDLEWARE ───────────────────────────────────────────────────
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// ─── CONFIG ───────────────────────────────────────────────────────
 const CONFIG = { workStart: 9, workEnd: 18, lunchStart: 12, lunchEnd: 14 };
 
 function isWeekend(dateStr) {
@@ -174,88 +165,69 @@ function getAvailableSlots(dateStr, busyPeriods) {
   for (const [from, to] of [[CONFIG.workStart, CONFIG.lunchStart], [CONFIG.lunchEnd, CONFIG.workEnd]]) {
     for (let h = from; h < to; h += 0.5) {
       const end = h + 0.5;
-      const busy = busyPeriods.some(b =>
-        b.data === dateStr && h < b.hora_fim && end > b.hora_inicio
-      );
-      if (!busy) slots.push(h);
+      if (!busyPeriods.some(b => b.data === dateStr && h < b.hora_fim && end > b.hora_inicio))
+        slots.push(h);
     }
   }
   return slots;
 }
 
-// ─── ROUTES ───────────────────────────────────────────────────────
-
-// GET /api/slots?date=2026-03-10
 app.get('/api/slots', async (req, res) => {
   const { date } = req.query;
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date))
-    return res.status(400).json({ error: 'Parametro date invalido. Use YYYY-MM-DD.' });
+    return res.status(400).json({ error: 'Parametro date invalido.' });
   if (isWeekend(date))
     return res.json({ date, slots: [], message: 'Fim de semana.' });
-
   const busy = await getBusyFromGoogleCalendar(date, date);
   res.json({ date, slots: getAvailableSlots(date, busy) });
 });
 
-// GET /api/slots/week?date=2026-03-03
 app.get('/api/slots/week', async (req, res) => {
   const { date } = req.query;
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date))
-    return res.status(400).json({ error: 'Parametro date invalido. Use YYYY-MM-DD.' });
-
+    return res.status(400).json({ error: 'Parametro date invalido.' });
   const days = getWeekRange(date);
   const busy = await getBusyFromGoogleCalendar(days[0], days[4]);
   res.json({ week: days.map(d => ({ date: d, slots: getAvailableSlots(d, busy) })) });
 });
 
-// POST /api/check
 app.post('/api/check', async (req, res) => {
   const { date, hora_inicio, duracao } = req.body;
   if (!date || hora_inicio == null || !duracao)
     return res.status(400).json({ error: 'Campos obrigatorios: date, hora_inicio, duracao.' });
-
   const hora_fim = hora_inicio + duracao;
   if (isWeekend(date))                                                return res.json({ disponivel: false, motivo: 'fim_de_semana' });
   if (hora_inicio < CONFIG.workStart || hora_fim > CONFIG.workEnd)   return res.json({ disponivel: false, motivo: 'fora_do_horario' });
   if (hora_inicio < CONFIG.lunchEnd && hora_fim > CONFIG.lunchStart) return res.json({ disponivel: false, motivo: 'horario_almoco' });
-
   const busy = await getBusyFromGoogleCalendar(date, date);
   const conflict = busy.some(b => b.data === date && hora_inicio < b.hora_fim && hora_fim > b.hora_inicio);
   res.json({ disponivel: !conflict, motivo: conflict ? 'conflito' : null });
 });
 
-// POST /api/agendamentos
 app.post('/api/agendamentos', async (req, res) => {
   const { date, hora_inicio, duracao, titulo, emails } = req.body;
   if (!date || hora_inicio == null || !duracao || !titulo || !emails)
-    return res.status(400).json({ error: 'Campos obrigatorios: date, hora_inicio, duracao, titulo, emails.' });
-
+    return res.status(400).json({ error: 'Campos obrigatorios.' });
   const hora_fim = hora_inicio + duracao;
   if (isWeekend(date))                                                return res.status(409).json({ error: 'Fim de semana indisponivel.' });
-  if (hora_inicio < CONFIG.workStart || hora_fim > CONFIG.workEnd)   return res.status(409).json({ error: 'Horario fora do periodo permitido.' });
-  if (hora_inicio < CONFIG.lunchEnd && hora_fim > CONFIG.lunchStart) return res.status(409).json({ error: 'Horario de almoco indisponivel.' });
-
+  if (hora_inicio < CONFIG.workStart || hora_fim > CONFIG.workEnd)   return res.status(409).json({ error: 'Horario fora do periodo.' });
+  if (hora_inicio < CONFIG.lunchEnd && hora_fim > CONFIG.lunchStart) return res.status(409).json({ error: 'Horario de almoco.' });
   const busy = await getBusyFromGoogleCalendar(date, date);
   const conflict = busy.some(b => b.data === date && hora_inicio < b.hora_fim && hora_fim > b.hora_inicio);
   if (conflict) return res.status(409).json({ error: 'Conflito de horario.' });
-
   const info = db.prepare(
     'INSERT INTO agendamentos (data, hora_inicio, hora_fim, titulo, duracao, emails) VALUES (?, ?, ?, ?, ?, ?)'
   ).run(date, hora_inicio, hora_fim, titulo, duracao, JSON.stringify(emails));
-
   const eventId = await createGoogleCalendarEvent({ date, hora_inicio, hora_fim, titulo, emails });
   if (eventId) db.prepare('UPDATE agendamentos SET google_event_id = ? WHERE id = ?').run(eventId, info.lastInsertRowid);
-
   res.status(201).json({ id: info.lastInsertRowid, date, hora_inicio, hora_fim, titulo, emails, google_event_id: eventId });
 });
 
-// GET /api/agendamentos
 app.get('/api/agendamentos', (req, res) => {
   const rows = db.prepare('SELECT * FROM agendamentos ORDER BY data, hora_inicio').all();
   res.json(rows.map(r => ({ ...r, emails: JSON.parse(r.emails) })));
 });
 
-// DELETE /api/agendamentos/:id
 app.delete('/api/agendamentos/:id', async (req, res) => {
   const row = db.prepare('SELECT * FROM agendamentos WHERE id = ?').get(req.params.id);
   if (!row) return res.status(404).json({ error: 'Agendamento nao encontrado.' });
