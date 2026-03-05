@@ -149,6 +149,14 @@ function isWeekend(dateStr) {
   return [0, 6].includes(new Date(y, m - 1, d).getDay());
 }
 
+function isPast(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return date < today;
+}
+
 function getWeekRange(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
   const date = new Date(y, m - 1, d);
@@ -163,7 +171,7 @@ function getWeekRange(dateStr) {
 }
 
 function getAvailableSlots(dateStr, busyPeriods) {
-  if (isWeekend(dateStr)) return [];
+  if (isWeekend(dateStr) || isPast(dateStr)) return [];
   const slots = [];
   for (const [from, to] of [[CONFIG.workStart, CONFIG.lunchStart], [CONFIG.lunchEnd, CONFIG.workEnd]]) {
     for (let h = from; h < to; h += 0.5) {
