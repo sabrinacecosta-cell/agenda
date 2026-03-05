@@ -569,11 +569,20 @@ async function finalConfirm() {
   const res = await apiBook({ date:flow.date, hora_inicio:flow.time, duracao:flow.duration, titulo:flow.title, emails:allEmails });
   appendMsg('Confirmar agendamento','user');
   if (res.ok) {
-    await botReply(`<span class="success-msg">Reunião agendada com sucesso!</span><br><br>
-      O convite será enviado por <strong>${CONFIG.senderEmail}</strong> para:<br>
-      <div class="email-tags" style="margin-top:10px">
-        ${allEmails.map(e=>`<span class="email-tag">${e}</span>`).join('')}
-      </div>`, 800);
+  const meetLink = res.data?.meet_link;
+  await botReply(`<span class="success-msg">Reunião agendada com sucesso!</span><br><br>
+    <div class="confirm-card">
+      <div class="row"><div class="label">Título</div><div class="value">${flow.title}</div></div>
+      <div class="row"><div class="label">Data</div><div class="value">${fmtDate(flow.date)}</div></div>
+      <div class="row"><div class="label">Horário</div><div class="value">${fmtHour(flow.time)} – ${fmtHour(flow.time+flow.duration)}</div></div>
+      <div class="row"><div class="label">Convidados</div>
+        <div class="email-tags" style="margin-top:8px">
+          ${allEmails.map(e=>`<span class="email-tag">${e}</span>`).join('')}
+        </div>
+      </div>
+      ${meetLink ? `<div class="row"><div class="label">Link da reunião</div><div class="value"><a href="${meetLink}" target="_blank" style="color:var(--accent);text-decoration:none;">🎥 Entrar no Google Meet</a></div></div>` : ''}
+    </div>`, 800);
+}
   } else {
     await botReply(`<span class="danger-msg">Erro ao salvar: ${res.data?.error||'tente novamente.'}</span>`);
   }

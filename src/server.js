@@ -98,28 +98,36 @@ async function createGoogleCalendarEvent({ date, hora_inicio, hora_fim, titulo, 
   if (!auth) { console.warn('Google Calendar nao configurado.'); return null; }
   try {
     const calendar = google.calendar({ version: 'v3', auth });
-    const event = {
-      summary: titulo,
-      start:   { dateTime: toRFC3339(date, hora_inicio), timeZone: TIMEZONE },
-      end:     { dateTime: toRFC3339(date, hora_fim),    timeZone: TIMEZONE },
-      attendees: emails.map(email => ({ email })),
-      organizer: { email: SENDER_EMAIL },
-      sendUpdates: 'all',
-      reminders: {
-        useDefault: false,
-        overrides: [
-          { method: 'email', minutes: 60 },
-          { method: 'popup', minutes: 15 },
-        ],
-      },
-    };
-    const res = await calendar.events.insert({
-      calendarId: CALENDAR_ID,
-      resource: event,
-      sendNotifications: true,
-    });
-    console.log('Evento criado:', res.data.id);
-    return res.data.id;
+  const event = {
+  summary: titulo,
+  start:   { dateTime: toRFC3339(date, hora_inicio), timeZone: TIMEZONE },
+  end:     { dateTime: toRFC3339(date, hora_fim),    timeZone: TIMEZONE },
+  attendees: emails.map(email => ({ email })),
+  organizer: { email: SENDER_EMAIL },
+  sendUpdates: 'all',
+  conferenceData: {
+    createRequest: {
+      requestId: `meet-${Date.now()}`,
+      conferenceSolutionKey: { type: 'hangoutsMeet' },
+    },
+  },
+  reminders: {
+    useDefault: false,
+    overrides: [
+      { method: 'email', minutes: 60 },
+      { method: 'popup', minutes: 15 },
+    ],
+  },
+};
+   const res = await calendar.events.insert({
+  calendarId: CALENDAR_ID,
+  resource: event,
+  sendNotifications: true,
+  conferenceDataVersion: 1,
+});
+   console.log('Evento criado:', res.data.id);
+    const meetLink = res.data.conferenceData?.entryPoints?.find(e => e.entryPointType === 'video')?.uri || null;
+    return { id: res.data.id, meetLink };
   } catch (err) {
     console.error('Erro ao criar evento:', err.message);
     return null;
@@ -238,10 +246,12 @@ app.post('/api/agendamentos', async (req, res) => {
   const info = db.prepare(
     'INSERT INTO agendamentos (data, hora_inicio, hora_fim, titulo, duracao, emails) VALUES (?, ?, ?, ?, ?, ?)'
   ).run(date, hora_inicio, hora_fim, titulo, duracao, JSON.stringify(emails));
-  const eventId = await createGoogleCalendarEvent({ date, hora_inicio, hora_fim, titulo, emails });
-  if (eventId) db.prepare('UPDATE agendamentos SET google_event_id = ? WHERE id = ?').run(eventId, info.lastInsertRowid);
-  res.status(201).json({ id: info.lastInsertRowid, date, hora_inicio, hora_fim, titulo, emails, google_event_id: eventId });
-});
+const gcal = await createGoogleCalendarEvent({ date, hora_inicio, hora_fim, titulo, emails });
+const eventId = gcal?.id || null;
+const meetLink = gcal?.meetLink || null;
+if (eventId) db.prepare('UPDATE agendamentos SET google_event_id = ? WHERE id = ?').run(eventId, info.lastInsertRowid);
+
+res.status(201).json({ id: info.lastInsertRowid, date, hora_inicio, hora_fim, titulo, emails, google_event_id: eventId, meet_link: meetLink });
 
 app.get('/api/agendamentos', (req, res) => {
   const rows = db.prepare('SELECT * FROM agendamentos ORDER BY data, hora_inicio').all();
