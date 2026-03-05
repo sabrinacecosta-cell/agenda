@@ -401,7 +401,28 @@ function detectIntent(msg) {
 //  HANDLERS
 // ═══════════════════════════════════════
 async function handleQuery(msg) {
-  const intent = detectIntent(msg);
+  // detecta "semana que vem"
+if (/semana que vem|próxima semana|proxima semana/.test(msg.toLowerCase())) {
+  const nextMonday = new Date();
+  nextMonday.setDate(nextMonday.getDate() + (8 - nextMonday.getDay()) % 7 || 7);
+  const iso = toISO(nextMonday);
+  const res = await apiWeek(iso);
+  if (!res.week) { await botReply('Erro ao consultar semana. Tente novamente.'); return; }
+  let rows = '';
+  res.week.forEach(({date:d,slots}) => {
+    const tags = slots.length
+      ? slots.map(h=>`<span class="slot-tag" onclick="slotChosen('${d}',${h})">${fmtHour(h)}</span>`).join('')
+      : '<em style="color:var(--muted)">Sem disponibilidade</em>';
+    rows += `<tr><td><strong>${fmtShort(d)}</strong></td><td>${tags}</td></tr>`;
+  });
+  await botReply(`**Disponibilidade da semana que vem:**<br><br>
+    <table class="week-table">
+      <thead><tr><th>Dia</th><th>Horários disponíveis</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="date-hint">Clique em um horário para agendar diretamente.</div>`);
+  return;
+}const intent = detectIntent(msg);
 
   if (intent === 'week') {
     const date = parseDateFromMsg(msg);
