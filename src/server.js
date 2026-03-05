@@ -162,7 +162,9 @@ function getWeekRange(dateStr) {
   const date = new Date(y, m - 1, d);
   const day = date.getDay();
   const monday = new Date(date);
-  monday.setDate(date.getDate() - (day === 0 ? 6 : day - 1));
+  if (day === 6) monday.setDate(date.getDate() + 2);
+  else if (day === 0) monday.setDate(date.getDate() + 1);
+  else monday.setDate(date.getDate() - (day - 1));
   return Array.from({ length: 5 }, (_, i) => {
     const dd = new Date(monday);
     dd.setDate(monday.getDate() + i);
