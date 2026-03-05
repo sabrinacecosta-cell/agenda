@@ -31,11 +31,13 @@ const SENDER_EMAIL = process.env.SENDER_EMAIL       || 'sabrina@jtdkinvest.com';
 const TIMEZONE     = 'America/Sao_Paulo';
 
 function getGoogleAuth() {
+  const IMPERSONATE = process.env.GOOGLE_IMPERSONATE_EMAIL || 'sabrina@jtdkinvest.com';
   if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
     const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
     return new google.auth.GoogleAuth({
       credentials,
       scopes: ['https://www.googleapis.com/auth/calendar'],
+      clientOptions: { subject: IMPERSONATE },
     });
   }
   const keyPath = path.join(__dirname, '..', 'credentials.json');
@@ -43,6 +45,7 @@ function getGoogleAuth() {
     return new google.auth.GoogleAuth({
       keyFile: keyPath,
       scopes: ['https://www.googleapis.com/auth/calendar'],
+      clientOptions: { subject: IMPERSONATE },
     });
   }
   return null;
