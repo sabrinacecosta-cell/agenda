@@ -359,7 +359,7 @@ function appendMsg(html, sender='bot') {
 
   const bubble = document.createElement('div');
   bubble.className = `bubble ${sender}`;
-  bubble.innerHTML = html;
+  bubble.innerHTML = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   group.appendChild(bubble);
   chatEl.appendChild(group);
   chatEl.scrollTop = chatEl.scrollHeight;
