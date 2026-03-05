@@ -57,6 +57,10 @@ function toRFC3339(dateStr, hour) {
   return `${dateStr}T${hh}:${mm}:00`;
 }
 
+function toISODate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
 async function getBusyFromGoogleCalendar(dateStart, dateEnd) {
   const auth = getGoogleAuth();
   if (!auth) return [];
@@ -98,34 +102,34 @@ async function createGoogleCalendarEvent({ date, hora_inicio, hora_fim, titulo, 
   if (!auth) { console.warn('Google Calendar nao configurado.'); return null; }
   try {
     const calendar = google.calendar({ version: 'v3', auth });
-  const event = {
-  summary: titulo,
-  start:   { dateTime: toRFC3339(date, hora_inicio), timeZone: TIMEZONE },
-  end:     { dateTime: toRFC3339(date, hora_fim),    timeZone: TIMEZONE },
-  attendees: emails.map(email => ({ email })),
-  organizer: { email: SENDER_EMAIL },
-  sendUpdates: 'all',
-  conferenceData: {
-    createRequest: {
-      requestId: `meet-${Date.now()}`,
-      conferenceSolutionKey: { type: 'hangoutsMeet' },
-    },
-  },
-  reminders: {
-    useDefault: false,
-    overrides: [
-      { method: 'email', minutes: 60 },
-      { method: 'popup', minutes: 15 },
-    ],
-  },
-};
-   const res = await calendar.events.insert({
-  calendarId: CALENDAR_ID,
-  resource: event,
-  sendNotifications: true,
-  conferenceDataVersion: 1,
-});
-   console.log('Evento criado:', res.data.id);
+    const event = {
+      summary: titulo,
+      start:   { dateTime: toRFC3339(date, hora_inicio), timeZone: TIMEZONE },
+      end:     { dateTime: toRFC3339(date, hora_fim),    timeZone: TIMEZONE },
+      attendees: emails.map(email => ({ email })),
+      organizer: { email: SENDER_EMAIL },
+      sendUpdates: 'all',
+      conferenceData: {
+        createRequest: {
+          requestId: `meet-${Date.now()}`,
+          conferenceSolutionKey: { type: 'hangoutsMeet' },
+        },
+      },
+      reminders: {
+        useDefault: false,
+        overrides: [
+          { method: 'email', minutes: 60 },
+          { method: 'popup', minutes: 15 },
+        ],
+      },
+    };
+    const res = await calendar.events.insert({
+      calendarId: CALENDAR_ID,
+      resource: event,
+      sendNotifications: true,
+      conferenceDataVersion: 1,
+    });
+    console.log('Evento criado:', res.data.id);
     const meetLink = res.data.conferenceData?.entryPoints?.find(e => e.entryPointType === 'video')?.uri || null;
     return { id: res.data.id, meetLink };
   } catch (err) {
@@ -179,19 +183,16 @@ function getWeekRange(dateStr) {
     return dd.toISOString().split('T')[0];
   });
 }
-function toISODate(d) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
+
 function getAvailableSlots(dateStr, busyPeriods) {
   if (isWeekend(dateStr) || isPast(dateStr)) return [];
   const slots = [];
   const now = new Date();
   const isToday = dateStr === toISODate(now);
   const currentHour = now.getHours() + now.getMinutes() / 60;
-
   for (const [from, to] of [[CONFIG.workStart, CONFIG.lunchStart], [CONFIG.lunchEnd, CONFIG.workEnd]]) {
     for (let h = from; h < to; h += 0.5) {
-      if (isToday && h <= currentHour) continue; // pula horários passados de hoje
+      if (isToday && h <= currentHour) continue;
       const end = h + 0.5;
       if (!busyPeriods.some(b => b.data === dateStr && h < b.hora_fim && end > b.hora_inicio))
         slots.push(h);
@@ -204,8 +205,8 @@ app.get('/api/slots', async (req, res) => {
   const { date } = req.query;
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date))
     return res.status(400).json({ error: 'Parametro date invalido.' });
-  if (isWeekend(date))
-    return res.json({ date, slots: [], message: 'Fim de semana.' });
+  if (isWeekend(date) || isPast(date))
+    return res.json({ date, slots: [] });
   const busy = await getBusyFromGoogleCalendar(date, date);
   res.json({ date, slots: getAvailableSlots(date, busy) });
 });
@@ -222,7 +223,7 @@ app.get('/api/slots/week', async (req, res) => {
 app.post('/api/check', async (req, res) => {
   const { date, hora_inicio, duracao } = req.body;
   if (!date || hora_inicio == null || !duracao)
-    return res.status(400).json({ error: 'Campos obrigatorios: date, hora_inicio, duracao.' });
+    return res.status(400).json({ error: 'Campos obrigatorios.' });
   const hora_fim = hora_inicio + duracao;
   if (isWeekend(date))                                                return res.json({ disponivel: false, motivo: 'fim_de_semana' });
   if (hora_inicio < CONFIG.workStart || hora_fim > CONFIG.workEnd)   return res.json({ disponivel: false, motivo: 'fora_do_horario' });
@@ -246,15 +247,24 @@ app.post('/api/agendamentos', async (req, res) => {
   const info = db.prepare(
     'INSERT INTO agendamentos (data, hora_inicio, hora_fim, titulo, duracao, emails) VALUES (?, ?, ?, ?, ?, ?)'
   ).run(date, hora_inicio, hora_fim, titulo, duracao, JSON.stringify(emails));
-const gcal = await createGoogleCalendarEvent({ date, hora_inicio, hora_fim, titulo, emails });
-const eventId = gcal?.id || null;
-const meetLink = gcal?.meetLink || null;
-if (eventId) db.prepare('UPDATE agendamentos SET google_event_id = ? WHERE id = ?').run(eventId, info.lastInsertRowid);
-
-res.status(201).json({ id: info.lastInsertRowid, date, hora_inicio, hora_fim, titulo, emails, google_event_id: eventId, meet_link: meetLink });
+  const gcal = await createGoogleCalendarEvent({ date, hora_inicio, hora_fim, titulo, emails });
+  const eventId = gcal?.id || null;
+  const meetLink = gcal?.meetLink || null;
+  if (eventId) db.prepare('UPDATE agendamentos SET google_event_id = ? WHERE id = ?').run(eventId, info.lastInsertRowid);
+  res.status(201).json({ id: info.lastInsertRowid, date, hora_inicio, hora_fim, titulo, emails, google_event_id: eventId, meet_link: meetLink });
+});
 
 app.get('/api/agendamentos', (req, res) => {
   const rows = db.prepare('SELECT * FROM agendamentos ORDER BY data, hora_inicio').all();
+  res.json(rows.map(r => ({ ...r, emails: JSON.parse(r.emails) })));
+});
+
+app.get('/api/agendamentos/busca', (req, res) => {
+  const { titulo } = req.query;
+  if (!titulo) return res.status(400).json({ error: 'Informe o titulo.' });
+  const rows = db.prepare(
+    "SELECT * FROM agendamentos WHERE LOWER(titulo) LIKE LOWER(?) AND data >= date('now') ORDER BY data, hora_inicio"
+  ).all(`%${titulo}%`);
   res.json(rows.map(r => ({ ...r, emails: JSON.parse(r.emails) })));
 });
 

@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Agenda WFlow</title>
-<link href="https://fonts.googleapis.com/css2?family=Styrene+A:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #1a1a1a;
@@ -18,256 +17,77 @@
     --text: #ececec;
     --text2: #b4b4b4;
     --muted: #666666;
-    --bubble-user: #cc7a29;
-    --bubble-bot: #2a2a2a;
     --danger: #e05252;
     --success: #5ead6e;
     --radius: 18px;
     --radius-sm: 10px;
     --max-w: 720px;
   }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size: 15px;
-    height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  /* ── TOP BAR ── */
-  .topbar {
-    display: flex; align-items: center; justify-content: center;
-    padding: 14px 24px;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg);
-    flex-shrink: 0;
-    position: relative;
-  }
-  .topbar-title {
-    font-size: 14px; font-weight: 500; color: var(--text2);
-    display: flex; align-items: center; gap: 8px;
-  }
-  .topbar-dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: var(--success);
-    box-shadow: 0 0 6px var(--success);
-    animation: pulse 2.5s infinite;
-  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; font-size:15px; height:100dvh; display:flex; flex-direction:column; overflow:hidden; }
+  .topbar { display:flex; align-items:center; justify-content:center; padding:14px 24px; border-bottom:1px solid var(--border); background:var(--bg); flex-shrink:0; }
+  .topbar-title { font-size:14px; font-weight:500; color:var(--text2); display:flex; align-items:center; gap:8px; }
+  .topbar-dot { width:8px; height:8px; border-radius:50%; background:var(--success); box-shadow:0 0 6px var(--success); animation:pulse 2.5s infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
-
-  /* ── CHAT ── */
-  #chat {
-    flex: 1; overflow-y: auto;
-    padding: 24px 16px 12px;
-    display: flex; flex-direction: column; gap: 4px;
-    scroll-behavior: smooth;
-  }
-  #chat::-webkit-scrollbar { width: 4px; }
-  #chat::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
-
-  .msg-group {
-    display: flex; flex-direction: column;
-    max-width: var(--max-w); width: 100%;
-    margin: 0 auto; padding: 4px 0;
-  }
-  .msg-group.user { align-items: flex-end; }
-  .msg-group.bot  { align-items: flex-start; }
-
-  .sender-label {
-    font-size: 12px; color: var(--muted);
-    margin-bottom: 4px; padding: 0 4px;
-    display: flex; align-items: center; gap: 6px;
-  }
-  .sender-label .avatar-sm {
-    width: 20px; height: 20px; border-radius: 50%;
-    background: var(--accent); color: #fff;
-    font-size: 11px; font-weight: 600;
-    display: flex; align-items: center; justify-content: center;
-  }
-
-  .bubble {
-    padding: 12px 16px;
-    line-height: 1.65;
-    font-size: 14.5px;
-    max-width: 100%;
-    animation: msgIn .25s ease both;
-  }
-  @keyframes msgIn {
-    from { opacity:0; transform:translateY(6px); }
-    to   { opacity:1; transform:translateY(0); }
-  }
-
-  .bubble.bot {
-    background: transparent;
-    color: var(--text);
-    border-radius: 0;
-  }
-  .bubble.user {
-    background: var(--bubble-user);
-    color: #fff;
-    border-radius: var(--radius);
-    border-bottom-right-radius: 4px;
-    max-width: 480px;
-    box-shadow: 0 2px 12px rgba(204,122,41,.25);
-  }
-  .bubble strong { font-weight: 600; }
-  .bubble em { font-style: italic; color: var(--text2); font-size: 13px; }
-
-  /* ── SLOTS ── */
-  .slots-grid { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
-  .slot-btn {
-    padding: 6px 14px;
-    border: 1px solid var(--border2);
-    background: var(--surface);
-    color: var(--text);
-    border-radius: 8px;
-    font-size: 13px; font-weight: 500;
-    cursor: pointer; transition: all .15s;
-  }
-  .slot-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-faint); }
-
-  /* ── WEEK TABLE ── */
-  .week-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
-  .week-table th {
-    background: var(--surface); color: var(--text2); font-weight: 500;
-    padding: 8px 12px; text-align: left;
-    border-bottom: 1px solid var(--border2);
-  }
-  .week-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
-
-  .slot-tag {
-    display: inline-block;
-    background: var(--surface); color: var(--text2);
-    border: 1px solid var(--border2);
-    border-radius: 6px; padding: 2px 9px; margin: 2px 2px 2px 0;
-    font-size: 12px; cursor: pointer; transition: all .15s;
-  }
-  .slot-tag:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-faint); }
-
-  /* ── CONFIRM CARD ── */
-  .confirm-card {
-    background: var(--surface);
-    border: 1px solid var(--border2);
-    border-radius: var(--radius-sm);
-    padding: 16px 18px; margin-top: 12px;
-    font-size: 13.5px; line-height: 1.8;
-  }
-  .confirm-card .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 2px; }
-  .confirm-card .value { font-weight: 500; color: var(--text); }
-  .confirm-card .row   { margin-bottom: 10px; }
-  .confirm-card .row:last-child { margin-bottom: 0; }
-
-  /* ── BUTTONS ── */
-  .action-btns { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
-  .btn-primary {
-    padding: 9px 20px;
-    background: var(--accent); color: #fff;
-    border: none; border-radius: 8px;
-    font-size: 13.5px; font-weight: 500;
-    cursor: pointer; transition: all .15s;
-  }
-  .btn-primary:hover { background: var(--accent-hover); }
-  .btn-primary:disabled { opacity: .4; cursor: not-allowed; }
-  .btn-secondary {
-    padding: 9px 20px;
-    background: transparent; color: var(--text2);
-    border: 1px solid var(--border2); border-radius: 8px;
-    font-size: 13.5px; font-weight: 500;
-    cursor: pointer; transition: all .15s;
-  }
-  .btn-secondary:hover { border-color: var(--text2); color: var(--text); }
-
-  /* ── TITLE INPUT ── */
-  .title-input {
-    width: 100%; padding: 10px 14px;
-    border: 1px solid var(--border2); border-radius: 8px;
-    background: var(--surface2); color: var(--text);
-    font-size: 14px; margin-top: 8px; outline: none;
-    transition: border-color .15s;
-  }
-  .title-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(204,122,41,.12); }
-
-  /* ── EMAIL TAGS ── */
-  .email-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-  .email-tag {
-    background: var(--surface); border: 1px solid var(--border2);
-    color: var(--text2); border-radius: 20px; padding: 3px 12px; font-size: 12px;
-  }
-
-  /* ── TYPING ── */
-  .typing { display: flex; gap: 4px; align-items: center; padding: 8px 0; }
-  .typing span {
-    width: 6px; height: 6px; border-radius: 50%; background: var(--muted);
-    animation: bounce .8s infinite;
-  }
-  .typing span:nth-child(2) { animation-delay: .15s; }
-  .typing span:nth-child(3) { animation-delay: .3s; }
+  #chat { flex:1; overflow-y:auto; padding:24px 16px 12px; display:flex; flex-direction:column; gap:4px; scroll-behavior:smooth; }
+  #chat::-webkit-scrollbar { width:4px; }
+  #chat::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+  .msg-group { display:flex; flex-direction:column; max-width:var(--max-w); width:100%; margin:0 auto; padding:4px 0; }
+  .msg-group.user { align-items:flex-end; }
+  .msg-group.bot  { align-items:flex-start; }
+  .sender-label { font-size:12px; color:var(--muted); margin-bottom:4px; padding:0 4px; display:flex; align-items:center; gap:6px; }
+  .sender-label .avatar-sm { width:20px; height:20px; border-radius:50%; background:var(--accent); color:#fff; font-size:11px; font-weight:600; display:flex; align-items:center; justify-content:center; }
+  .bubble { padding:12px 16px; line-height:1.65; font-size:14.5px; max-width:100%; animation:msgIn .25s ease both; }
+  @keyframes msgIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+  .bubble.bot  { background:transparent; color:var(--text); }
+  .bubble.user { background:var(--accent); color:#fff; border-radius:var(--radius); border-bottom-right-radius:4px; max-width:480px; box-shadow:0 2px 12px rgba(204,122,41,.25); }
+  .bubble strong { font-weight:600; }
+  .bubble em { font-style:italic; color:var(--text2); font-size:13px; }
+  .slots-grid { display:flex; flex-wrap:wrap; gap:7px; margin-top:12px; }
+  .slot-btn { padding:6px 14px; border:1px solid var(--border2); background:var(--surface); color:var(--text); border-radius:8px; font-size:13px; font-weight:500; cursor:pointer; transition:all .15s; }
+  .slot-btn:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-faint); }
+  .week-table { width:100%; border-collapse:collapse; margin-top:12px; font-size:13px; }
+  .week-table th { background:var(--surface); color:var(--text2); font-weight:500; padding:8px 12px; text-align:left; border-bottom:1px solid var(--border2); }
+  .week-table td { padding:8px 12px; border-bottom:1px solid var(--border); vertical-align:top; }
+  .slot-tag { display:inline-block; background:var(--surface); color:var(--text2); border:1px solid var(--border2); border-radius:6px; padding:2px 9px; margin:2px 2px 2px 0; font-size:12px; cursor:pointer; transition:all .15s; }
+  .slot-tag:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-faint); }
+  .confirm-card { background:var(--surface); border:1px solid var(--border2); border-radius:var(--radius-sm); padding:16px 18px; margin-top:12px; font-size:13.5px; line-height:1.8; }
+  .confirm-card .label { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.8px; margin-bottom:2px; }
+  .confirm-card .value { font-weight:500; color:var(--text); }
+  .confirm-card .row   { margin-bottom:10px; }
+  .confirm-card .row:last-child { margin-bottom:0; }
+  .action-btns { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
+  .btn-primary { padding:9px 20px; background:var(--accent); color:#fff; border:none; border-radius:8px; font-size:13.5px; font-weight:500; cursor:pointer; transition:all .15s; }
+  .btn-primary:hover { background:var(--accent-hover); }
+  .btn-primary:disabled { opacity:.4; cursor:not-allowed; }
+  .btn-secondary { padding:9px 20px; background:transparent; color:var(--text2); border:1px solid var(--border2); border-radius:8px; font-size:13.5px; font-weight:500; cursor:pointer; transition:all .15s; }
+  .btn-secondary:hover { border-color:var(--text2); color:var(--text); }
+  .title-input { width:100%; padding:10px 14px; border:1px solid var(--border2); border-radius:8px; background:var(--surface2); color:var(--text); font-size:14px; margin-top:8px; outline:none; transition:border-color .15s; font-family:inherit; }
+  .title-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(204,122,41,.12); }
+  .email-tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .email-tag { background:var(--surface); border:1px solid var(--border2); color:var(--text2); border-radius:20px; padding:3px 12px; font-size:12px; }
+  .typing { display:flex; gap:4px; align-items:center; padding:8px 0; }
+  .typing span { width:6px; height:6px; border-radius:50%; background:var(--muted); animation:bounce .8s infinite; }
+  .typing span:nth-child(2) { animation-delay:.15s; }
+  .typing span:nth-child(3) { animation-delay:.3s; }
   @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
-
-  /* ── INPUT AREA ── */
-  .input-area {
-    flex-shrink: 0;
-    padding: 12px 16px 20px;
-    background: var(--bg);
-  }
-  .input-inner {
-    max-width: var(--max-w); margin: 0 auto;
-    display: flex; flex-direction: column; gap: 8px;
-  }
-
-  .quick-btns { display: flex; gap: 6px; flex-wrap: wrap; }
-  .quick-btn {
-    padding: 5px 13px;
-    background: var(--surface); border: 1px solid var(--border2);
-    border-radius: 20px; color: var(--text2);
-    font-size: 12px; cursor: pointer; transition: all .15s;
-    white-space: nowrap;
-  }
-  .quick-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-faint); }
-
-  .input-row {
-    display: flex; align-items: flex-end; gap: 8px;
-    background: var(--surface);
-    border: 1px solid var(--border2);
-    border-radius: 14px;
-    padding: 8px 8px 8px 16px;
-    transition: border-color .15s;
-  }
-  .input-row:focus-within { border-color: var(--border2); box-shadow: 0 0 0 2px rgba(255,255,255,.04); }
-
-  #userInput {
-    flex: 1; background: transparent; border: none; outline: none;
-    color: var(--text); font-size: 14.5px; line-height: 1.5;
-    resize: none; max-height: 120px;
-    font-family: inherit;
-  }
-  #userInput::placeholder { color: var(--muted); }
-
-  #sendBtn {
-    width: 36px; height: 36px; flex-shrink: 0;
-    background: var(--accent); border: none; border-radius: 9px;
-    color: #fff; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    transition: all .15s;
-  }
-  #sendBtn:hover { background: var(--accent-hover); }
-  #sendBtn:disabled { opacity: .3; cursor: not-allowed; }
-  #sendBtn svg { width: 16px; height: 16px; }
-
-  .success-msg { color: var(--success); font-weight: 600; }
-  .danger-msg  { color: var(--danger); }
-  .date-hint   { font-size: 12px; color: var(--muted); margin-top: 6px; }
-
-  @media(max-width:520px) {
-    #chat { padding: 16px 10px 8px; }
-    .input-area { padding: 8px 10px 16px; }
-  }
+  .input-area { flex-shrink:0; padding:12px 16px 20px; background:var(--bg); }
+  .input-inner { max-width:var(--max-w); margin:0 auto; display:flex; flex-direction:column; gap:8px; }
+  .quick-btns { display:flex; gap:6px; flex-wrap:wrap; }
+  .quick-btn { padding:5px 13px; background:var(--surface); border:1px solid var(--border2); border-radius:20px; color:var(--text2); font-size:12px; cursor:pointer; transition:all .15s; white-space:nowrap; font-family:inherit; }
+  .quick-btn:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-faint); }
+  .input-row { display:flex; align-items:flex-end; gap:8px; background:var(--surface); border:1px solid var(--border2); border-radius:14px; padding:8px 8px 8px 16px; transition:border-color .15s; }
+  .input-row:focus-within { box-shadow:0 0 0 2px rgba(255,255,255,.04); }
+  #userInput { flex:1; background:transparent; border:none; outline:none; color:var(--text); font-size:14.5px; line-height:1.5; resize:none; max-height:120px; font-family:inherit; }
+  #userInput::placeholder { color:var(--muted); }
+  #sendBtn { width:36px; height:36px; flex-shrink:0; background:var(--accent); border:none; border-radius:9px; color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .15s; }
+  #sendBtn:hover { background:var(--accent-hover); }
+  #sendBtn svg { width:16px; height:16px; }
+  .success-msg { color:var(--success); font-weight:600; }
+  .danger-msg  { color:var(--danger); }
+  .date-hint   { font-size:12px; color:var(--muted); margin-top:6px; }
+  a.meet-link { color:var(--accent); text-decoration:none; font-weight:500; }
+  a.meet-link:hover { text-decoration:underline; }
 </style>
 </head>
 <body>
@@ -291,18 +111,13 @@
     <div class="input-row">
       <textarea id="userInput" rows="1" placeholder="Pergunte sobre disponibilidade ou agende uma reunião…"></textarea>
       <button id="sendBtn" onclick="handleSend()">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-        </svg>
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
       </button>
     </div>
   </div>
 </div>
 
 <script>
-// ═══════════════════════════════════════
-//  CONFIG
-// ═══════════════════════════════════════
 const CONFIG = {
   defaultEmails: ['joel@wflowinvest.com', 'sabrina.costa@wflowinvest.com'],
   senderEmail:   'sabrina@jtdkinvest.com',
@@ -310,56 +125,39 @@ const CONFIG = {
 };
 const API = '';
 
-let flow = { step:'idle', date:null, time:null, duration:null, emails:[], title:CONFIG.titleTemplate };
+let flow = { step:'idle', date:null, time:null, duration:null, emails:[], title:CONFIG.titleTemplate, cancelTarget:null };
 
-// ═══════════════════════════════════════
-//  HELPERS
-// ═══════════════════════════════════════
 function toISO(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
-function fmtDate(d) {
-  if (typeof d==='string') { const [y,m,dd]=d.split('-'); d=new Date(+y,+m-1,+dd); }
-  return d.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
-}
-function fmtShort(iso) { const [y,m,d]=iso.split('-'); return new Date(+y,+m-1,+d).toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'}); }
+function fmtDate(d) { if(typeof d==='string'){const[y,m,dd]=d.split('-');d=new Date(+y,+m-1,+dd);} return d.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'}); }
+function fmtShort(iso) { const[y,m,d]=iso.split('-'); return new Date(+y,+m-1,+d).toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'}); }
 function fmtHour(h) { return `${String(Math.floor(h)).padStart(2,'0')}:${(h%1)===.5?'30':'00'}`; }
 function parseDateFromMsg(msg) { const m=msg.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?/); if(!m)return null; return new Date(m[3]?+m[3]:new Date().getFullYear(),+m[2]-1,+m[1]); }
 function parseTimeFromMsg(msg) { const m=msg.match(/(\d{1,2})(?:h|:)(\d{0,2})/i); if(!m)return null; return parseInt(m[1])+(m[2]?parseInt(m[2])||0:0)/60; }
 function todayISO() { return toISO(new Date()); }
 function weekStartISO() { const d=new Date(); const day=d.getDay(); d.setDate(d.getDate()-(day===0?6:day-1)); return toISO(d); }
+function bold(html) { return html.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>'); }
 
-// ═══════════════════════════════════════
-//  API
-// ═══════════════════════════════════════
 async function apiSlots(dateISO) { const r=await fetch(`${API}/api/slots?date=${dateISO}`); return r.json(); }
 async function apiWeek(dateISO)  { const r=await fetch(`${API}/api/slots/week?date=${dateISO}`); return r.json(); }
-async function apiCheck(dateISO,hora_inicio,duracao) {
-  const r=await fetch(`${API}/api/check`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({date:dateISO,hora_inicio,duracao})});
-  return r.json();
-}
-async function apiBook(payload) {
-  const r=await fetch(`${API}/api/agendamentos`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-  return {ok:r.ok,data:await r.json()};
-}
+async function apiCheck(dateISO,hora_inicio,duracao) { const r=await fetch(`${API}/api/check`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({date:dateISO,hora_inicio,duracao})}); return r.json(); }
+async function apiBook(payload)  { const r=await fetch(`${API}/api/agendamentos`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); return {ok:r.ok,data:await r.json()}; }
+async function apiBusca(titulo)  { const r=await fetch(`${API}/api/agendamentos/busca?titulo=${encodeURIComponent(titulo)}`); return r.json(); }
+async function apiDelete(id)     { const r=await fetch(`${API}/api/agendamentos/${id}`,{method:'DELETE'}); return {ok:r.ok,data:await r.json()}; }
 
-// ═══════════════════════════════════════
-//  CHAT UI
-// ═══════════════════════════════════════
 const chatEl = document.getElementById('chat');
 
 function appendMsg(html, sender='bot') {
   const group = document.createElement('div');
   group.className = `msg-group ${sender}`;
-
-  if (sender === 'bot') {
+  if (sender==='bot') {
     const label = document.createElement('div');
     label.className = 'sender-label';
-    label.innerHTML = `<span class="avatar-sm">W</span> Agenda WFlow`;
+    label.innerHTML = '<span class="avatar-sm">W</span> Agenda WFlow';
     group.appendChild(label);
   }
-
   const bubble = document.createElement('div');
   bubble.className = `bubble ${sender}`;
-  bubble.innerHTML = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  bubble.innerHTML = bold(html);
   group.appendChild(bubble);
   chatEl.appendChild(group);
   chatEl.scrollTop = chatEl.scrollHeight;
@@ -367,15 +165,15 @@ function appendMsg(html, sender='bot') {
 
 function showTyping() {
   const group = document.createElement('div');
-  group.className = 'msg-group bot'; group.id = 'typing';
+  group.className='msg-group bot'; group.id='typing';
   const label = document.createElement('div');
-  label.className = 'sender-label';
-  label.innerHTML = `<span class="avatar-sm">W</span> Agenda WFlow`;
+  label.className='sender-label';
+  label.innerHTML='<span class="avatar-sm">W</span> Agenda WFlow';
   const bubble = document.createElement('div');
-  bubble.className = 'bubble bot';
-  bubble.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+  bubble.className='bubble bot';
+  bubble.innerHTML='<div class="typing"><span></span><span></span><span></span></div>';
   group.appendChild(label); group.appendChild(bubble);
-  chatEl.appendChild(group); chatEl.scrollTop = chatEl.scrollHeight;
+  chatEl.appendChild(group); chatEl.scrollTop=chatEl.scrollHeight;
 }
 function hideTyping() { document.getElementById('typing')?.remove(); }
 function sleep(ms) { return new Promise(r=>setTimeout(r,ms)); }
@@ -386,26 +184,17 @@ function slotsHtml(slots, dateISO) {
   return `<div class="slots-grid">${slots.map(h=>`<button class="slot-btn" onclick="slotChosen('${dateISO}',${h})">${fmtHour(h)}</button>`).join('')}</div>`;
 }
 
-// ═══════════════════════════════════════
-//  INTENT
-// ═══════════════════════════════════════
 function detectIntent(msg) {
   const m = msg.toLowerCase();
+  if (/cancelar.*(reuni[aã]o|agendamento)/.test(m)) return 'cancel';
+  if (/semana que vem|pr[oó]xima semana/.test(m)) return 'next_week';
   if (/semana|week/.test(m)) return 'week';
-  if (/agendar|marcar|reunião|meeting/.test(m)) return 'book';
-  if (/horário|disponib|livre|vaga|hoje/.test(m)) return 'slots';
+  if (/agendar|marcar|reuni[aã]o|meeting/.test(m)) return 'book';
+  if (/hor[aá]rio|disponib|livre|vaga|hoje/.test(m)) return 'slots';
   return 'unknown';
 }
 
-// ═══════════════════════════════════════
-//  HANDLERS
-// ═══════════════════════════════════════
-async function handleQuery(msg) {
-  // detecta "semana que vem"
-if (/semana que vem|próxima semana|proxima semana/.test(msg.toLowerCase())) {
-  const nextMonday = new Date();
-  nextMonday.setDate(nextMonday.getDate() + (8 - nextMonday.getDay()) % 7 || 7);
-  const iso = toISO(nextMonday);
+async function showWeek(iso, label) {
   const res = await apiWeek(iso);
   if (!res.week) { await botReply('Erro ao consultar semana. Tente novamente.'); return; }
   let rows = '';
@@ -415,33 +204,57 @@ if (/semana que vem|próxima semana|proxima semana/.test(msg.toLowerCase())) {
       : '<em style="color:var(--muted)">Sem disponibilidade</em>';
     rows += `<tr><td><strong>${fmtShort(d)}</strong></td><td>${tags}</td></tr>`;
   });
-  await botReply(`**Disponibilidade da semana que vem:**<br><br>
+  await botReply(`**${label}**<br><br>
     <table class="week-table">
       <thead><tr><th>Dia</th><th>Horários disponíveis</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     <div class="date-hint">Clique em um horário para agendar diretamente.</div>`);
-  return;
-}const intent = detectIntent(msg);
+}
+
+async function handleQuery(msg) {
+  const intent = detectIntent(msg);
+
+  if (intent === 'cancel') {
+    const match = msg.match(/cancelar.*(reuni[aã]o|agendamento)[:\s]+(.+)/i);
+    if (match) {
+      const titulo = match[2].trim();
+      const results = await apiBusca(titulo);
+      if (!results.length) {
+        await botReply(`Nenhuma reunião encontrada com o título **"${titulo}"**. Verifique e tente novamente.`);
+        return;
+      }
+      const r = results[0];
+      flow.cancelTarget = r;
+      flow.step = 'confirm_cancel';
+      await botReply(`Encontrei esta reunião:<br><br>
+        <div class="confirm-card">
+          <div class="row"><div class="label">Título</div><div class="value">${r.titulo}</div></div>
+          <div class="row"><div class="label">Data</div><div class="value">${fmtDate(r.data)}</div></div>
+          <div class="row"><div class="label">Horário</div><div class="value">${fmtHour(r.hora_inicio)} – ${fmtHour(r.hora_fim)}</div></div>
+        </div>
+        <div class="action-btns">
+          <button class="btn-primary" style="background:#e05252" onclick="confirmCancel()">Cancelar esta reunião</button>
+          <button class="btn-secondary" onclick="abortCancel()">Manter reunião</button>
+        </div>`);
+    } else {
+      flow.step = 'collect_cancel_title';
+      await botReply('Qual o título da reunião que deseja cancelar?');
+    }
+    return;
+  }
+
+  if (intent === 'next_week') {
+    const nextMonday = new Date();
+    nextMonday.setDate(nextMonday.getDate() + (8 - nextMonday.getDay()) % 7 || 7);
+    await showWeek(toISO(nextMonday), 'Disponibilidade da semana que vem:');
+    return;
+  }
 
   if (intent === 'week') {
     const date = parseDateFromMsg(msg);
     const iso = date ? toISO(date) : weekStartISO();
-    const res = await apiWeek(iso);
-    if (!res.week) { await botReply('Erro ao consultar semana. Tente novamente.'); return; }
-    let rows = '';
-    res.week.forEach(({date:d,slots}) => {
-      const tags = slots.length
-        ? slots.map(h=>`<span class="slot-tag" onclick="slotChosen('${d}',${h})">${fmtHour(h)}</span>`).join('')
-        : '<em style="color:var(--muted)">Sem disponibilidade</em>';
-      rows += `<tr><td><strong>${fmtShort(d)}</strong></td><td>${tags}</td></tr>`;
-    });
-    await botReply(`**Disponibilidade da semana:**<br><br>
-      <table class="week-table">
-        <thead><tr><th>Dia</th><th>Horários disponíveis</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-      <div class="date-hint">Clique em um horário para agendar diretamente.</div>`);
+    await showWeek(iso, 'Disponibilidade da semana:');
     return;
   }
 
@@ -471,15 +284,17 @@ if (/semana que vem|próxima semana|proxima semana/.test(msg.toLowerCase())) {
   }
 
   await botReply(`Posso ajudar com:<br><br>
-    • <strong>Disponibilidade de um dia</strong> — ex: <em>"horários do dia 10/03/2026"</em><br>
-    • <strong>Disponibilidade da semana</strong> — ex: <em>"semana do dia 03/03/2026"</em><br>
-    • <strong>Agendar reunião</strong> — ex: <em>"agendar dia 10/03/2026 às 14h"</em>`);
+    • **Disponibilidade de um dia** — ex: <em>"horários do dia 10/03/2026"</em><br>
+    • **Disponibilidade da semana** — ex: <em>"semana do dia 10/03/2026"</em><br>
+    • **Semana que vem** — ex: <em>"semana que vem"</em><br>
+    • **Agendar reunião** — ex: <em>"agendar dia 10/03/2026 às 14h"</em><br>
+    • **Cancelar reunião** — ex: <em>"cancelar reunião: Apresentação Consórcio – João"</em>`);
 }
 
 async function attemptBook(iso, time) {
   const check = await apiCheck(iso, time, 0.5);
   if (!check.disponivel) {
-    const motivos = { fim_de_semana:'este dia é fim de semana', fora_do_horario:'horário fora do período permitido (09:00–18:00)', horario_almoco:'das 12:00 às 14:00 é horário de almoço', conflito:'este horário já está ocupado' };
+    const motivos = { fim_de_semana:'este dia é fim de semana', fora_do_horario:'horário fora do período (09:00–18:00)', horario_almoco:'das 12:00 às 14:00 é horário de almoço', conflito:'este horário já está ocupado' };
     const res = await apiSlots(iso);
     await botReply(`**${fmtHour(time)}** não está disponível — ${motivos[check.motivo]||'indisponível'}.<br><br>Horários disponíveis em **${fmtDate(iso)}**:<br>${slotsHtml(res.slots, iso)}`, 800);
     flow.date = iso; flow.step = 'choose_slot'; return;
@@ -551,9 +366,7 @@ async function showConfirmation() {
       <div class="row"><div class="label">Duração</div><div class="value">${flow.duration===0.5?'30 minutos':'1 hora'}</div></div>
       <div class="row"><div class="label">Remetente</div><div class="value">${CONFIG.senderEmail}</div></div>
       <div class="row"><div class="label">Convidados</div>
-        <div class="email-tags" style="margin-top:8px">
-          ${allEmails.map(e=>`<span class="email-tag">${e}</span>`).join('')}
-        </div>
+        <div class="email-tags" style="margin-top:8px">${allEmails.map(e=>`<span class="email-tag">${e}</span>`).join('')}</div>
       </div>
     </div>
     <div class="action-btns">
@@ -569,68 +382,100 @@ async function finalConfirm() {
   const res = await apiBook({ date:flow.date, hora_inicio:flow.time, duracao:flow.duration, titulo:flow.title, emails:allEmails });
   appendMsg('Confirmar agendamento','user');
   if (res.ok) {
-  const meetLink = res.data?.meet_link;
-  await botReply(`<span class="success-msg">Reunião agendada com sucesso!</span><br><br>
-    <div class="confirm-card">
-      <div class="row"><div class="label">Título</div><div class="value">${flow.title}</div></div>
-      <div class="row"><div class="label">Data</div><div class="value">${fmtDate(flow.date)}</div></div>
-      <div class="row"><div class="label">Horário</div><div class="value">${fmtHour(flow.time)} – ${fmtHour(flow.time+flow.duration)}</div></div>
-      <div class="row"><div class="label">Convidados</div>
-        <div class="email-tags" style="margin-top:8px">
-          ${allEmails.map(e=>`<span class="email-tag">${e}</span>`).join('')}
+    const meetLink = res.data?.meet_link;
+    await botReply(`<span class="success-msg">Reunião agendada com sucesso!</span><br><br>
+      <div class="confirm-card">
+        <div class="row"><div class="label">Título</div><div class="value">${flow.title}</div></div>
+        <div class="row"><div class="label">Data</div><div class="value">${fmtDate(flow.date)}</div></div>
+        <div class="row"><div class="label">Horário</div><div class="value">${fmtHour(flow.time)} – ${fmtHour(flow.time+flow.duration)}</div></div>
+        <div class="row"><div class="label">Convidados</div>
+          <div class="email-tags" style="margin-top:8px">${allEmails.map(e=>`<span class="email-tag">${e}</span>`).join('')}</div>
         </div>
-      </div>
-      ${meetLink ? `<div class="row"><div class="label">Link da reunião</div><div class="value"><a href="${meetLink}" target="_blank" style="color:var(--accent);text-decoration:none;">🎥 Entrar no Google Meet</a></div></div>` : ''}
-    </div>`, 800);
-}
+        ${meetLink ? `<div class="row"><div class="label">Link da reunião</div><div class="value"><a class="meet-link" href="${meetLink}" target="_blank">🎥 Entrar no Google Meet</a></div></div>` : ''}
+      </div>`, 800);
   } else {
     await botReply(`<span class="danger-msg">Erro ao salvar: ${res.data?.error||'tente novamente.'}</span>`);
   }
-  flow = { step:'idle', date:null, time:null, duration:null, emails:[], title:CONFIG.titleTemplate };
+  flow = { step:'idle', date:null, time:null, duration:null, emails:[], title:CONFIG.titleTemplate, cancelTarget:null };
 }
 
 async function cancelFlow() {
   appendMsg('Cancelar','user');
-  flow = { step:'idle', date:null, time:null, duration:null, emails:[], title:CONFIG.titleTemplate };
+  flow = { step:'idle', date:null, time:null, duration:null, emails:[], title:CONFIG.titleTemplate, cancelTarget:null };
   await botReply('Agendamento cancelado. Como posso ajudar?', 400);
 }
 
-// ═══════════════════════════════════════
-//  ROUTER
-// ═══════════════════════════════════════
+async function confirmCancel() {
+  const r = flow.cancelTarget;
+  const res = await apiDelete(r.id);
+  appendMsg('Cancelar esta reunião','user');
+  if (res.ok) {
+    await botReply(`<span class="success-msg">Reunião cancelada com sucesso!</span><br><br>
+      <strong>${r.titulo}</strong><br>
+      ${fmtDate(r.data)} às ${fmtHour(r.hora_inicio)} foi removida da agenda.`, 500);
+  } else {
+    await botReply('<span class="danger-msg">Erro ao cancelar. Tente novamente.</span>');
+  }
+  flow = { step:'idle', date:null, time:null, duration:null, emails:[], title:CONFIG.titleTemplate, cancelTarget:null };
+}
+
+async function abortCancel() {
+  appendMsg('Manter reunião','user');
+  flow = { step:'idle', date:null, time:null, duration:null, emails:[], title:CONFIG.titleTemplate, cancelTarget:null };
+  await botReply('Ok! A reunião foi mantida. Posso ajudar com mais alguma coisa?', 400);
+}
+
 async function handleSend() {
   const input = document.getElementById('userInput');
   const msg = input.value.trim();
   if (!msg) return;
-  input.value = ''; input.style.height = 'auto';
-  appendMsg(msg, 'user');
+  input.value=''; input.style.height='auto';
+  appendMsg(msg,'user');
 
+  if (flow.step==='collect_cancel_title') {
+    const results = await apiBusca(msg);
+    if (!results.length) {
+      await botReply(`Nenhuma reunião encontrada com **"${msg}"**. Verifique o título e tente novamente.`);
+      flow.step='idle'; return;
+    }
+    const r = results[0];
+    flow.cancelTarget = r;
+    flow.step = 'confirm_cancel';
+    await botReply(`Encontrei esta reunião:<br><br>
+      <div class="confirm-card">
+        <div class="row"><div class="label">Título</div><div class="value">${r.titulo}</div></div>
+        <div class="row"><div class="label">Data</div><div class="value">${fmtDate(r.data)}</div></div>
+        <div class="row"><div class="label">Horário</div><div class="value">${fmtHour(r.hora_inicio)} – ${fmtHour(r.hora_fim)}</div></div>
+      </div>
+      <div class="action-btns">
+        <button class="btn-primary" style="background:#e05252" onclick="confirmCancel()">Cancelar esta reunião</button>
+        <button class="btn-secondary" onclick="abortCancel()">Manter reunião</button>
+      </div>`);
+    return;
+  }
+  if (flow.step==='confirm_cancel') { await botReply('Clique em um dos botões acima para confirmar.'); return; }
   if (flow.step==='collect_emails')   { await handleEmailStep(msg); return; }
   if (flow.step==='collect_duration') { if(/30|meia/.test(msg)) durationChosen(0.5); else if(/1|hora|60/.test(msg)) durationChosen(1); else await botReply('Escolha **30 minutos** ou **1 hora**.'); return; }
   if (flow.step==='collect_title')    { flow.title=msg; flow.step='confirm'; await showConfirmation(); return; }
   if (flow.step==='choose_slot') {
-    const t = parseTimeFromMsg(msg);
-    if (t!==null&&flow.date) { await attemptBook(flow.date,t); return; }
-    const d = parseDateFromMsg(msg);
-    if (d) { flow.date=toISO(d); const res=await apiSlots(flow.date); await botReply(`${fmtDate(flow.date)}<br>${slotsHtml(res.slots,flow.date)}`,500); return; }
+    const t=parseTimeFromMsg(msg);
+    if(t!==null&&flow.date){await attemptBook(flow.date,t);return;}
+    const d=parseDateFromMsg(msg);
+    if(d){flow.date=toISO(d);const res=await apiSlots(flow.date);await botReply(`${fmtDate(flow.date)}<br>${slotsHtml(res.slots,flow.date)}`,500);return;}
   }
   await handleQuery(msg);
 }
 
 function quickSend(msg) { document.getElementById('userInput').value=msg; handleSend(); }
 
-// textarea auto-resize
 document.getElementById('userInput').addEventListener('input', function() {
-  this.style.height = 'auto';
-  this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+  this.style.height='auto';
+  this.style.height=Math.min(this.scrollHeight,120)+'px';
 });
 document.getElementById('userInput').addEventListener('keydown', e => {
-  if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();handleSend();}
 });
 
-// ═══════════════════════════════════════
-//  WELCOME
-// ═══════════════════════════════════════
 window.addEventListener('load', async () => {
   await botReply(`Olá! Sou o assistente de agendamento da **WFlow**.<br><br>
     Posso verificar disponibilidade e agendar reuniões diretamente na agenda. Como posso ajudar?`, 600);
