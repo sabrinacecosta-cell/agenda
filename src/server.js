@@ -169,12 +169,19 @@ function getWeekRange(dateStr) {
     return dd.toISOString().split('T')[0];
   });
 }
-
+function toISODate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 function getAvailableSlots(dateStr, busyPeriods) {
   if (isWeekend(dateStr) || isPast(dateStr)) return [];
   const slots = [];
+  const now = new Date();
+  const isToday = dateStr === toISODate(now);
+  const currentHour = now.getHours() + now.getMinutes() / 60;
+
   for (const [from, to] of [[CONFIG.workStart, CONFIG.lunchStart], [CONFIG.lunchEnd, CONFIG.workEnd]]) {
     for (let h = from; h < to; h += 0.5) {
+      if (isToday && h <= currentHour) continue; // pula horários passados de hoje
       const end = h + 0.5;
       if (!busyPeriods.some(b => b.data === dateStr && h < b.hora_fim && end > b.hora_inicio))
         slots.push(h);
@@ -199,7 +206,7 @@ app.get('/api/slots/week', async (req, res) => {
     return res.status(400).json({ error: 'Parametro date invalido.' });
   const days = getWeekRange(date);
   const busy = await getBusyFromGoogleCalendar(days[0], days[4]);
-  res.json({ week: days.map(d => ({ date: d, slots: getAvailableSlots(d, busy) })) });
+  res.json({ week: days.filter(d => !isPast(d)).map(d => ({ date: d, slots: getAvailableSlots(d, busy) })) });
 });
 
 app.post('/api/check', async (req, res) => {
