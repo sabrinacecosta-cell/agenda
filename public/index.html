@@ -320,9 +320,7 @@ async function askDuration() {
   flow.step = 'collect_duration';
   const durations = [
     [0.25,'15 min'],[0.5,'30 min'],[0.75,'45 min'],
-    [1,'1h'],[1.25,'1h15'],[1.5,'1h30'],[1.75,'1h45'],
-    [2,'2h'],[2.25,'2h15'],[2.5,'2h30'],[2.75,'2h45'],
-    [3,'3h'],[3.25,'3h15'],[3.5,'3h30'],[3.75,'3h45'],[4,'4h']
+    [1,'1h'],[1.25,'1h15'],[1.5,'1h30']
   ];
   const btns = durations.map(([v,l])=>`<button class="slot-btn" onclick="durationChosen(${v})">${l}</button>`).join('');
   await botReply(`**${fmtHour(flow.time)}** de **${fmtDate(flow.date)}** está disponível! ✓<br><br>
