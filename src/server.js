@@ -53,7 +53,7 @@ function getGoogleAuth() {
 
 function toRFC3339(dateStr, hour) {
   const hh = String(Math.floor(hour)).padStart(2, '0');
-  const mm = (hour % 1) === 0.5 ? '30' : '00';
+  const mm = String(Math.round((hour % 1) * 60)).padStart(2, '0');
   return `${dateStr}T${hh}:${mm}:00`;
 }
 
@@ -225,12 +225,30 @@ app.post('/api/check', async (req, res) => {
   if (!date || hora_inicio == null || !duracao)
     return res.status(400).json({ error: 'Campos obrigatorios.' });
   const hora_fim = hora_inicio + duracao;
-  if (isWeekend(date))                                                return res.json({ disponivel: false, motivo: 'fim_de_semana' });
-  if (hora_inicio < CONFIG.workStart || hora_fim > CONFIG.workEnd)   return res.json({ disponivel: false, motivo: 'fora_do_horario' });
-  if (hora_inicio < CONFIG.lunchEnd && hora_fim > CONFIG.lunchStart) return res.json({ disponivel: false, motivo: 'horario_almoco' });
+  if (isWeekend(date))             return res.json({ disponivel: false, motivo: 'fim_de_semana', duracao_disponivel: 0 });
+  if (hora_inicio < CONFIG.workStart || hora_inicio >= CONFIG.workEnd)
+                                   return res.json({ disponivel: false, motivo: 'fora_do_horario', duracao_disponivel: 0 });
   const busy = await getBusyFromGoogleCalendar(date, date);
+
+  // Calcula quanto tempo contínuo está livre a partir de hora_inicio
+  let maxEnd = CONFIG.workEnd;
+  if (hora_inicio < CONFIG.lunchStart) maxEnd = Math.min(maxEnd, CONFIG.lunchStart);
+  else if (hora_inicio < CONFIG.lunchEnd) maxEnd = hora_inicio; // dentro do almoço
+
+  const futureBusy = busy.filter(b => b.data === date && b.hora_inicio > hora_inicio);
+  if (futureBusy.length) {
+    const nextStart = Math.min(...futureBusy.map(b => b.hora_inicio));
+    maxEnd = Math.min(maxEnd, nextStart);
+  }
+  const occupiedNow = busy.find(b => b.data === date && b.hora_inicio <= hora_inicio && b.hora_fim > hora_inicio);
+  if (occupiedNow) maxEnd = hora_inicio;
+
+  const duracao_disponivel = Math.max(0, maxEnd - hora_inicio);
+
+  if (hora_fim > CONFIG.workEnd)                                     return res.json({ disponivel: false, motivo: 'fora_do_horario', duracao_disponivel });
+  if (hora_inicio < CONFIG.lunchEnd && hora_fim > CONFIG.lunchStart) return res.json({ disponivel: false, motivo: 'horario_almoco', duracao_disponivel });
   const conflict = busy.some(b => b.data === date && hora_inicio < b.hora_fim && hora_fim > b.hora_inicio);
-  res.json({ disponivel: !conflict, motivo: conflict ? 'conflito' : null });
+  res.json({ disponivel: !conflict, motivo: conflict ? 'conflito' : null, duracao_disponivel });
 });
 
 app.post('/api/agendamentos', async (req, res) => {

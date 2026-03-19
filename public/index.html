@@ -130,7 +130,8 @@ let flow = { step:'idle', date:null, time:null, duration:null, emails:[], title:
 function toISO(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function fmtDate(d) { if(typeof d==='string'){const[y,m,dd]=d.split('-');d=new Date(+y,+m-1,+dd);} return d.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'}); }
 function fmtShort(iso) { const[y,m,d]=iso.split('-'); return new Date(+y,+m-1,+d).toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'}); }
-function fmtHour(h) { return `${String(Math.floor(h)).padStart(2,'0')}:${(h%1)===.5?'30':'00'}`; }
+function fmtHour(h) { const m=Math.round((h%1)*60); return `${String(Math.floor(h)).padStart(2,'0')}:${String(m).padStart(2,'0')}`; }
+function fmtDuration(dur) { const t=Math.round(dur*60); const h=Math.floor(t/60); const m=t%60; if(h===0)return`${m} min`; if(m===0)return`${h}h`; return`${h}h${String(m).padStart(2,'0')}`; }
 function parseDateFromMsg(msg) { const m=msg.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?/); if(!m)return null; return new Date(m[3]?+m[3]:new Date().getFullYear(),+m[2]-1,+m[1]); }
 function parseTimeFromMsg(msg) { const m=msg.match(/(\d{1,2})(?:h|:)(\d{0,2})/i); if(!m)return null; return parseInt(m[1])+(m[2]?parseInt(m[2])||0:0)/60; }
 function todayISO() { return toISO(new Date()); }
@@ -292,7 +293,7 @@ async function handleQuery(msg) {
 }
 
 async function attemptBook(iso, time) {
-  const check = await apiCheck(iso, time, 0.5);
+  const check = await apiCheck(iso, time, 0.25);
   if (!check.disponivel) {
     const motivos = { fim_de_semana:'este dia é fim de semana', fora_do_horario:'horário fora do período (09:00–18:00)', horario_almoco:'das 12:00 às 14:00 é horário de almoço', conflito:'este horário já está ocupado' };
     const res = await apiSlots(iso);
@@ -300,18 +301,83 @@ async function attemptBook(iso, time) {
     flow.date = iso; flow.step = 'choose_slot'; return;
   }
   flow.date = iso; flow.time = time;
-  await askEmails();
+  await askDuration();
 }
 
 async function slotChosen(iso, h) {
   flow.date = iso; flow.time = h;
   appendMsg(`${fmtDate(iso)} às ${fmtHour(h)}`, 'user');
+  await askDuration();
+}
+
+async function slotChosenWithDuration(iso, h, dur) {
+  flow.date = iso; flow.time = h; flow.duration = dur;
+  appendMsg(`${fmtDate(iso)} às ${fmtHour(h)}`, 'user');
   await askEmails();
+}
+
+async function askDuration() {
+  flow.step = 'collect_duration';
+  const durations = [
+    [0.25,'15 min'],[0.5,'30 min'],[0.75,'45 min'],
+    [1,'1h'],[1.25,'1h15'],[1.5,'1h30'],[1.75,'1h45'],
+    [2,'2h'],[2.25,'2h15'],[2.5,'2h30'],[2.75,'2h45'],
+    [3,'3h'],[3.25,'3h15'],[3.5,'3h30'],[3.75,'3h45'],[4,'4h']
+  ];
+  const btns = durations.map(([v,l])=>`<button class="slot-btn" onclick="durationChosen(${v})">${l}</button>`).join('');
+  await botReply(`**${fmtHour(flow.time)}** de **${fmtDate(flow.date)}** está disponível! ✓<br><br>
+    Qual será a duração da reunião?<br><br>
+    <div class="slots-grid">${btns}</div>`, 600);
+}
+
+async function durationChosen(dur) {
+  appendMsg(fmtDuration(dur), 'user');
+  const check = await apiCheck(flow.date, flow.time, dur);
+  if (!check.disponivel) {
+    const durDisp = check.duracao_disponivel || 0;
+    if (durDisp > 0 && durDisp < dur) {
+      flow.step = 'confirm_reduced_duration';
+      await botReply(`O horário das **${fmtHour(flow.time)}** tem apenas **${fmtDuration(durDisp)}** disponíveis antes do próximo compromisso.<br><br>
+        <div class="action-btns">
+          <button class="btn-secondary" onclick="proceedWithReducedDuration(${durDisp})">Prosseguir com ${fmtDuration(durDisp)}</button>
+          <button class="btn-primary" onclick="chooseAnotherSlot(${dur})">Escolher outro horário</button>
+        </div>`, 500);
+    } else {
+      flow.step = 'choose_slot';
+      const res = await apiSlots(flow.date);
+      await botReply(`Não há espaço para **${fmtDuration(dur)}** a partir das **${fmtHour(flow.time)}**.<br><br>Escolha outro horário em **${fmtDate(flow.date)}**:<br>${slotsHtml(res.slots, flow.date)}`, 500);
+    }
+    return;
+  }
+  flow.duration = dur;
+  await askEmails();
+}
+
+async function proceedWithReducedDuration(durDisp) {
+  flow.duration = durDisp;
+  appendMsg(`Prosseguir com ${fmtDuration(durDisp)}`, 'user');
+  await askEmails();
+}
+
+async function chooseAnotherSlot(dur) {
+  appendMsg('Escolher outro horário', 'user');
+  flow.step = 'choose_slot';
+  await botReply('Verificando horários disponíveis…', 300);
+  const res = await apiSlots(flow.date);
+  const checks = await Promise.all(res.slots.map(slot => apiCheck(flow.date, slot, dur)));
+  const validSlots = res.slots.filter((_, i) => checks[i].disponivel);
+  if (!validSlots.length) {
+    await botReply(`Não há horários disponíveis para **${fmtDuration(dur)}** neste dia. Gostaria de tentar outra data?`);
+    flow.step = 'idle';
+  } else {
+    await botReply(`Horários que comportam **${fmtDuration(dur)}** em **${fmtDate(flow.date)}**:<br><br>
+      <div class="slots-grid">${validSlots.map(h=>`<button class="slot-btn" onclick="slotChosenWithDuration('${flow.date}',${h},${dur})">${fmtHour(h)}</button>`).join('')}</div>`);
+  }
 }
 
 async function askEmails() {
   flow.step = 'collect_emails';
-  await botReply(`**${fmtHour(flow.time)}** de **${fmtDate(flow.date)}** está disponível! ✓<br><br>
+  await botReply(`Reunião de **${fmtDuration(flow.duration)}** às **${fmtHour(flow.time)}** confirmada.<br><br>
     Quais e-mails adicionais incluir no convite?<br>
     <em>Os abaixo já são incluídos automaticamente:</em>
     <div class="email-tags" style="margin-top:10px">
@@ -323,23 +389,6 @@ async function askEmails() {
 async function handleEmailStep(msg) {
   const lower = msg.trim().toLowerCase();
   flow.emails = (lower==='nenhum'||lower==='não'||lower==='nao') ? [] : msg.split(/[,;\s]+/).map(e=>e.trim()).filter(e=>e.includes('@'));
-  flow.step = 'collect_duration';
-  await botReply(`Qual será a duração da reunião?<br><br>
-    <div class="slots-grid">
-      <button class="slot-btn" onclick="durationChosen(0.5)">30 minutos</button>
-      <button class="slot-btn" onclick="durationChosen(1)">1 hora</button>
-    </div>`, 500);
-}
-
-async function durationChosen(dur) {
-  const check = await apiCheck(flow.date, flow.time, dur);
-  if (!check.disponivel) {
-    const res = await apiSlots(flow.date);
-    await botReply(`Não há espaço para **${dur===1?'1 hora':'30 minutos'}** a partir das **${fmtHour(flow.time)}**.<br><br>Escolha outro horário:${slotsHtml(res.slots, flow.date)}`, 500);
-    flow.step = 'choose_slot'; return;
-  }
-  flow.duration = dur;
-  appendMsg(dur===0.5?'30 minutos':'1 hora','user');
   flow.step = 'collect_title';
   await botReply(`Qual será o título da reunião?<br>
     <em>Sugestão — edite o nome do cliente:</em>
@@ -363,7 +412,7 @@ async function showConfirmation() {
       <div class="row"><div class="label">Título</div><div class="value">${flow.title}</div></div>
       <div class="row"><div class="label">Data</div><div class="value">${fmtDate(flow.date)}</div></div>
       <div class="row"><div class="label">Horário</div><div class="value">${fmtHour(flow.time)} – ${fmtHour(flow.time+flow.duration)}</div></div>
-      <div class="row"><div class="label">Duração</div><div class="value">${flow.duration===0.5?'30 minutos':'1 hora'}</div></div>
+      <div class="row"><div class="label">Duração</div><div class="value">${fmtDuration(flow.duration)}</div></div>
       <div class="row"><div class="label">Remetente</div><div class="value">${CONFIG.senderEmail}</div></div>
       <div class="row"><div class="label">Convidados</div>
         <div class="email-tags" style="margin-top:8px">${allEmails.map(e=>`<span class="email-tag">${e}</span>`).join('')}</div>
@@ -454,8 +503,9 @@ async function handleSend() {
     return;
   }
   if (flow.step==='confirm_cancel') { await botReply('Clique em um dos botões acima para confirmar.'); return; }
+  if (flow.step==='collect_duration') { await botReply('Por favor, use os botões acima para selecionar a duração.'); return; }
+  if (flow.step==='confirm_reduced_duration') { await botReply('Clique em um dos botões acima para continuar.'); return; }
   if (flow.step==='collect_emails')   { await handleEmailStep(msg); return; }
-  if (flow.step==='collect_duration') { if(/30|meia/.test(msg)) durationChosen(0.5); else if(/1|hora|60/.test(msg)) durationChosen(1); else await botReply('Escolha **30 minutos** ou **1 hora**.'); return; }
   if (flow.step==='collect_title')    { flow.title=msg; flow.step='confirm'; await showConfirmation(); return; }
   if (flow.step==='choose_slot') {
     const t=parseTimeFromMsg(msg);
